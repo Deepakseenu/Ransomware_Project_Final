@@ -1,0 +1,5 @@
+filename,ext,entropy,size,is_suspicious_ext,label
+sample1.txt,.txt,0.00,0,0,benign
+invoice.docx,.docx,0.00,0,0,benign
+encryptor.exe,.exe,0.00,0,0,ransomware
+paynote.locked,.locked,0.00,0,1,ransomware

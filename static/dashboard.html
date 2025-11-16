@@ -1,0 +1,282 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Honeypot Monitoring Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>.hidden{display:none}.card{padding:1rem;border-radius:1rem;background:white;box-shadow:0 2px 6px rgba(0,0,0,0.1)}body.dark .card{background:#2d2d2d}</style>
+</head>
+<body class="bg-gray-100 text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+<div class="flex flex-col h-screen">
+  <header class="flex items-center justify-between px-6 py-3 bg-blue-700 text-white shadow-lg">
+    <h1 class="text-xl font-bold">Honeypot Monitoring Dashboard</h1>
+    <div class="flex items-center space-x-3">
+      <button id="startMonitorBtn" class="px-3 py-1 bg-green-600 rounded-lg">▶ Start Monitor</button>
+      <button id="stopMonitorBtn"  class="px-3 py-1 bg-red-600 rounded-lg">⏹ Stop Monitor</button>
+      <span id="monitorStatus" class="px-3 py-1 rounded bg-gray-800">unknown</span>
+      <button id="modeToggle" class="px-3 py-1 bg-blue-900 rounded-lg">🌙 Dark</button>
+      <span id="wsStatus" class="px-3 py-1 rounded">disconnected</span>
+    </div>
+  </header>
+
+  <nav class="flex flex-wrap bg-gray-200 dark:bg-gray-800 p-2 justify-around">
+    <button class="tab-btn px-3 py-2 rounded hover:bg-blue-400" onclick="showTab('overview')">Overview</button>
+    <button class="tab-btn px-3 py-2 rounded hover:bg-blue-400" onclick="showTab('events')">Events</button>
+    <button class="tab-btn px-3 py-2 rounded hover:bg-blue-400" onclick="showTab('blocked')">Blocked IPs</button>
+    <button class="tab-btn px-3 py-2 rounded hover:bg-blue-400" onclick="showTab('processes')">Processes</button>
+    <button class="tab-btn px-3 py-2 rounded hover:bg-blue-400" onclick="showTab('map')">Map</button>
+  </nav>
+
+  <main class="flex-1 overflow-y-auto p-6 space-y-6">
+    <section id="overview" class="tab-section">
+      <h2 class="text-2xl font-semibold mb-4">System Overview</h2>
+      <div id="overview-cards" class="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div class="card">CPU: <span id="cpuUsage">--</span>%</div>
+        <div class="card">Memory: <span id="memUsage">--</span>%</div>
+        <div class="card">Blocked IPs: <span id="blockedCount">--</span></div>
+        <div class="card">Recent Events: <span id="eventCount">--</span></div>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
+        <div class="card">
+          <h3 class="font-bold mb-2">Latest 5 Events</h3>
+          <ul id="recentEvents" class="list-disc pl-5 text-sm space-y-1"></ul>
+        </div>
+        <div class="card">
+          <h3 class="text-lg font-semibold mb-2">Controls</h3>
+          <input id="blockIpInput" placeholder="1.2.3.4" class="p-2 rounded border mr-2" />
+          <button id="blockIpBtn" class="px-3 py-1 bg-red-600 text-white rounded">Block IP</button>
+        </div>
+      </div>
+      <div class="card mt-6">
+        <canvas id="modChart" height="80"></canvas>
+      </div>
+    </section>
+
+    <section id="events" class="tab-section hidden">
+      <h2 class="text-2xl font-semibold mb-4">Live Events</h2>
+      <pre id="eventLog" class="bg-gray-900 text-green-400 p-3 rounded-lg h-96 overflow-y-auto"></pre>
+    </section>
+
+    <section id="blocked" class="tab-section hidden">
+      <h2 class="text-2xl font-semibold mb-4">Blocked IPs</h2>
+      <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg">
+        <thead><tr><th class="px-4 py-2">IP</th><th class="px-4 py-2">Reason</th><th class="px-4 py-2">Last Blocked</th><th>Action</th></tr></thead>
+        <tbody id="blockedTable"></tbody>
+      </table>
+    </section>
+
+    <section id="processes" class="tab-section hidden">
+      <h2 class="text-2xl font-semibold mb-4">Top Processes</h2>
+      <table class="min-w-full bg-white dark:bg-gray-800 rounded-lg">
+        <thead><tr><th>PID</th><th>Name</th><th>CPU%</th><th>Memory%</th></tr></thead>
+        <tbody id="processTable"></tbody>
+      </table>
+    </section>
+
+    <section id="map" class="tab-section hidden h-[500px]">
+      <h2 class="text-2xl font-semibold mb-4">Suspicious IP Map</h2>
+      <div id="ipMap" style="height:400px;" class="rounded-xl shadow-lg"></div>
+    </section>
+  </main>
+</div>
+
+<script>
+let dark = false;
+document.getElementById("modeToggle").addEventListener("click", () => {
+  dark = !dark;
+  document.body.classList.toggle("dark", dark);
+  document.getElementById("modeToggle").textContent = dark ? "☀️ Light" : "🌙 Dark";
+});
+
+function showTab(tabId){
+  document.querySelectorAll(".tab-section").forEach(e=>e.classList.add("hidden"));
+  document.getElementById(tabId).classList.remove("hidden");
+}
+
+/* ===========================
+   WEBSOCKET (events)
+   =========================== */
+let ws;
+function startWebSocket(){
+  const url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/events';
+  ws = new WebSocket(url);
+  const status = document.getElementById('wsStatus');
+  ws.onopen = () => { status.textContent = 'connected'; status.style.color = '#8af'; };
+  ws.onclose = () => { status.textContent = 'disconnected'; status.style.color = '#f66'; setTimeout(startWebSocket, 2000); };
+  ws.onerror = () => { status.textContent = 'error'; status.style.color = '#f66'; };
+  ws.onmessage = (ev) => {
+    try{
+      const obj = JSON.parse(ev.data);
+      if(obj.type === 'new_event'){
+        handleNewEvent(obj.data);
+      }
+    }catch(e){ console.warn('ws parse', e, ev.data); }
+  };
+}
+startWebSocket();
+
+/* ===========================
+   EVENT HANDLING
+   =========================== */
+let recentEvents = [];
+function handleNewEvent(data){
+  const time = new Date((data.ts||Date.now())*1000).toLocaleTimeString();
+  const evType = (data.type || 'event').toLowerCase();
+  const evAction = data.action || '—';
+  const evName = data.detail && (data.detail.name || data.detail.path) || '';
+
+  const log = document.getElementById('eventLog');
+  log.textContent += `[${time}] ${evType.toUpperCase()} - ${evAction}${evName ? ' ('+evName+')' : ''}\n`;
+  log.scrollTop = log.scrollHeight;
+
+  recentEvents.unshift({time, evType, evAction, evName});
+  if(recentEvents.length > 5) recentEvents.pop();
+  renderRecentEvents();
+  updateChart();
+}
+
+function renderRecentEvents(){
+  const ul = document.getElementById('recentEvents'); ul.innerHTML = '';
+  recentEvents.forEach(e=>{
+    const li=document.createElement('li');
+    li.textContent = `[${e.time}] ${e.evType.toUpperCase()} - ${e.evAction}${e.evName ? ' ('+e.evName+')' : ''}`;
+    ul.appendChild(li);
+  });
+}
+
+/* ===========================
+   CHART
+   =========================== */
+let modChart = new Chart(document.getElementById('modChart'), {
+  type: 'line', data: { labels: [], datasets: [{ label: 'Events', data: [], borderColor: '#00bcd4', fill:false }] }, options: { scales: { y: { beginAtZero: true } } }
+});
+function updateChart(){
+  const t = new Date().toLocaleTimeString();
+  modChart.data.labels.push(t);
+  if(modChart.data.labels.length > 20) modChart.data.labels.shift();
+  modChart.data.datasets[0].data.push(recentEvents.length);
+  if(modChart.data.datasets[0].data.length > 20) modChart.data.datasets[0].data.shift();
+  modChart.update();
+}
+
+/* ===========================
+   OVERVIEW & MONITOR CONTROL
+   =========================== */
+async function refreshOverview(){
+  try{
+    const res = await fetch('/api/live_status');
+    const d = await res.json();
+    document.getElementById('cpuUsage').textContent = d.cpu ?? '--';
+    document.getElementById('memUsage').textContent = d.memory ?? '--';
+    document.getElementById('blockedCount').textContent = d.blocked_ips ?? '--';
+    document.getElementById('eventCount').textContent = d.recent_events ?? '--';
+  }catch(e){ console.warn('Status fetch failed:', e); }
+}
+setInterval(refreshOverview, 3000); refreshOverview();
+
+/* Monitor control helpers */
+async function monitorAction(action){
+  try{
+    const res = await fetch(`/api/monitor/${action}`, { method: action === 'status' ? 'GET' : 'POST' });
+    const j = await res.json();
+    document.getElementById('monitorStatus').textContent = JSON.stringify(j);
+    // friendly short status
+    if(j.ok && j.importable === false){
+      document.getElementById('monitorStatus').textContent = 'not co-located';
+    } else if(j.ok && j.running){
+      document.getElementById('monitorStatus').textContent = 'running';
+    } else if(j.ok && j.running === false){
+      document.getElementById('monitorStatus').textContent = 'stopped';
+    }
+  }catch(e){
+    document.getElementById('monitorStatus').textContent = 'error';
+    console.warn(e);
+  }
+}
+
+document.getElementById('startMonitorBtn').addEventListener('click', ()=> monitorAction('start'));
+document.getElementById('stopMonitorBtn').addEventListener('click', ()=> monitorAction('stop'));
+setInterval(()=> monitorAction('status'), 5000);
+monitorAction('status');
+
+/* ===========================
+   BLOCKED IPs & MAP
+   =========================== */
+async function loadBlockedIPs(){
+  const res = await fetch('/api/blocked_ips');
+  const list = await res.json();
+  const tbody = document.getElementById('blockedTable');
+  tbody.innerHTML = '';
+  list.forEach(x=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td class="px-4 py-2">${x.ip}</td><td class="px-4 py-2">${x.reason||''}</td><td class="px-4 py-2">${x.last_blocked||''}</td><td><button data-ip="${x.ip}" class="unblockBtn px-2 py-1 bg-yellow-500 rounded">Unblock</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('.unblockBtn').forEach(b=>b.addEventListener('click', async (ev)=>{
+    const ip = ev.currentTarget.dataset.ip;
+    await fetch('/api/unblock_ip', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ip})});
+    await loadBlockedIPs();
+  }));
+}
+loadBlockedIPs();
+
+/* ===========================
+   PROCESS LIST (live, faster polling)
+   =========================== */
+async function loadProcesses(){
+  try{
+    const res = await fetch('/api/process_list');
+    const arr = await res.json();
+    const tbody = document.getElementById('processTable'); tbody.innerHTML = '';
+    arr.forEach(p=>{
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td class="px-2 py-1">${p.pid}</td><td class="px-2 py-1">${p.name}</td><td class="px-2 py-1">${(p.cpu_percent||0).toFixed(1)}</td><td class="px-2 py-1">${(p.memory_percent||0).toFixed(1)}</td>`;
+      tbody.appendChild(tr);
+    });
+  }catch(e){ console.warn(e); }
+}
+setInterval(loadProcesses, 3000); loadProcesses();
+
+/* ===========================
+   Block IP control
+   =========================== */
+document.getElementById('blockIpBtn').addEventListener('click', async ()=>{
+  const ip = document.getElementById('blockIpInput').value.trim();
+  if(!ip) return alert('Enter IP');
+  await fetch('/api/block_ip', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ip})});
+  document.getElementById('blockIpInput').value = '';
+  await loadBlockedIPs();
+});
+
+/* ===========================
+   MAP
+   =========================== */
+let map = L.map('ipMap').setView([20,0],2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{ attribution:'&copy; OpenStreetMap' }).addTo(map);
+async function updateMap(){
+  const res = await fetch('/api/blocked_ips');
+  const list = await res.json();
+  if(window._markers) window._markers.forEach(m=>map.removeLayer(m)); window._markers = [];
+  for(const ip of list){
+    try{
+      const geo = await fetch(`https://ipapi.co/${ip.ip}/json/`);
+      const loc = await geo.json();
+      if(loc.latitude && loc.longitude){
+        const m = L.marker([loc.latitude, loc.longitude]).addTo(map).bindPopup(`<b>${ip.ip}</b><br>${loc.city||''}, ${loc.country_name||''}`);
+        window._markers.push(m);
+      }
+    }catch(e){}
+  }
+}
+
+/* ===========================
+   INITIAL VIEW
+   =========================== */
+showTab('overview');
+</script>
+</body>
+</html>

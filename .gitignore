@@ -1,0 +1,8 @@
+.venv_app/
+__pycache__/
+*.pyc
+logs/
+honeypot_data/
+*.db
+*.log
+.env

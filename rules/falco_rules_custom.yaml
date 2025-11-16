@@ -1,0 +1,88 @@
+# ==========================================
+# Falco Custom Rules for Ransomware Honeypot
+# ==========================================
+
+- rule: apache_spawn_shell
+  desc: Detect Apache or NGINX spawning shell/interpreter
+  condition: >
+    spawned_process and
+    proc.name in (bash, sh, python, perl, php) and
+    proc.pname in (apache2, httpd, nginx)
+  output: >
+    [RANSOM] Webserver spawned a shell - user=%user.name pid=%proc.pid
+    cmdline=%proc.cmdline parent=%proc.pname
+  priority: WARNING
+  tags: [webserver, malware]
+
+- rule: apache_network_exfil
+  desc: Apache/nginx making outbound connections
+  condition: >
+    outbound_connection and
+    proc.pname in (apache2, httpd, nginx) and
+    fd.sip != 127.0.0.1
+  output: >
+    [RANSOM] Webserver outbound connection dst=%fd.sip:%fd.sport
+  priority: WARNING
+  tags: [network, exfiltration]
+
+- rule: web_high_disk_write
+  desc: Webserver rapidly writing files (possible ransomware)
+  condition: evt.type = open_write and proc.pname in (apache2, httpd, nginx) and evt.arg.flags contains O_WRONLY
+  output: >
+    [RANSOM] High file write activity by webserver file=%fd.name
+  priority: WARNING
+  tags: [filesystem, ransomware]
+
+- rule: apache_spawn_download_tool
+  desc: Apache launching wget/curl/scp/openssl
+  condition: >
+    spawned_process and
+    proc.name in (wget, curl, scp, openssl, nc, socat) and
+    proc.pname in (apache2, httpd, nginx, php)
+  output: >
+    [RANSOM] Webserver launched suspicious tool cmd=%proc.cmdline
+  priority: CRITICAL
+  tags: [malware, exfiltration]
+
+- rule: web_mass_file_rename
+  desc: Webserver renaming many files (classic ransomware)
+  condition: evt.type in (rename, renameat, renameat2) and proc.pname in (apache2, httpd, nginx)
+  output: >
+    [RANSOM] Mass file rename by webserver old=%evt.arg.oldpath new=%evt.arg.newpath
+  priority: CRITICAL
+  tags: [ransomware, filesystem]
+
+- rule: web_writes_encrypted_files
+  desc: Webserver writing encrypted extensions
+  condition: >
+    evt.type in (open_write) and
+    proc.pname in (apache2, httpd, nginx, php) and
+    (fd.name endswith ".enc" or fd.name endswith ".locked" or fd.name endswith ".crypt")
+  output: >
+    [RANSOM] Webserver writing encrypted extension file=%fd.name
+  priority: CRITICAL
+  tags: [ransomware]
+
+- rule: web_modifying_binaries
+  desc: Webserver modifying /bin or /usr/bin binaries
+  condition: evt.type = open_write and fd.directory in (/bin, /usr/bin, /sbin, /usr/sbin) and proc.pname in (apache2, httpd, nginx)
+  output: >
+    [RANSOM] Webserver modifying system binary file=%fd.name
+  priority: EMERGENCY
+  tags: [rootkit, persistence]
+
+- rule: ransomware_mass_rename
+  desc: Mass rename across system
+  condition: evt.type in (rename, renameat, renameat2) and evt.num > 10
+  output: "[RANSOM] Mass rename indicating ransomware: %evt.args"
+  priority: WARNING
+  tags: [ransomware]
+
+- rule: ransomware_suspicious_crypto_process
+  desc: Detect suspicious encryption process
+  condition: >
+    proc.name in (openssl, gpg, ccrypt, 7z, zip) or
+    (proc.cmdline contains "enc" and proc.cmdline contains "-aes")
+  output: "[RANSOM] Suspicious crypto process: %proc.cmdline"
+  priority: ERROR
+  tags: [crypto, ransomware]

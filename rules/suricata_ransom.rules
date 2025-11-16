@@ -1,0 +1,90 @@
+# ============================
+# Suricata Ransomware Detection Rules
+# Improved + Normalized
+# ============================
+
+# --- Large outbound POST request (possible exfiltration) ---
+alert http any any -> any any (
+    msg:"[RANSOM] Large HTTP POST - Possible Exfiltration";
+    flow:established,to_server;
+    http.method; content:"POST";
+    http.header;
+    pcre:"/Content-Length:\s([5-9][0-9]{6,})/i";
+    classtype:exfiltration;
+    sid:2000001; rev:3;
+)
+
+# --- Known ransomware C2 domain (example placeholder) ---
+alert dns any any -> any any (
+    msg:"[RANSOM] DNS query to known ransomware C2";
+    dns.query; content:"suspicious-c2.example.com";
+    classtype:trojan-activity;
+    sid:2000002; rev:2;
+)
+
+# --- Encrypted file extensions in URLs (.enc/.crypt/.locked) ---
+alert http any any -> any any (
+    msg:"[RANSOM] Request for encrypted file (.locked)";
+    uricontent:".locked"; nocase;
+    classtype:ransomware-activity;
+    sid:2000003; rev:2;
+)
+alert http any any -> any any (
+    msg:"[RANSOM] Request for encrypted file (.enc)";
+    uricontent:".enc"; nocase;
+    classtype:ransomware-activity;
+    sid:2000004; rev:2;
+)
+alert http any any -> any any (
+    msg:"[RANSOM] Request for encrypted file (.crypt)";
+    uricontent:".crypt"; nocase;
+    classtype:ransomware-activity;
+    sid:2000005; rev:2;
+)
+
+# --- SMB Lateral Movement ---
+alert tcp any any -> any 445 (
+    msg:"[RANSOM] SMB Lateral Movement Traffic Spike";
+    flow:established;
+    threshold:type both, track by_src, count 20, seconds 60;
+    classtype:worm-activity;
+    sid:2000006; rev:1;
+)
+
+# --- DGA (algorithm-generated domains) ---
+alert dns any any -> any any (
+    msg:"[RANSOM] Suspicious DNS Query - Possible DGA domain";
+    dns.query;
+    pcre:"/^[a-z0-9]{20,}\./";
+    classtype:trojan-activity;
+    sid:2000007; rev:2;
+)
+
+# --- Tor Ports Detection ---
+alert tcp any any -> any 9001 (
+    msg:"[RANSOM] Tor ORPort traffic";
+    classtype:anonymizer;
+    sid:2000008; rev:1;
+)
+alert tcp any any -> any 9050 (
+    msg:"[RANSOM] Tor SOCKS Traffic";
+    classtype:anonymizer;
+    sid:2000009; rev:1;
+)
+
+# --- Suspicious SMB IPC$ activity ---
+alert tcp any any -> any any (
+    msg:"[RANSOM] Suspicious SMB IPC$ Traffic";
+    flow:to_server,established;
+    content:"IPC$"; nocase;
+    classtype:trojan-activity;
+    sid:2000010; rev:1;
+)
+
+# --- Ransomware Note / Decrypt instructions ---
+alert http any any -> any any (
+    msg:"[RANSOM] Ransomware Note Download (decrypt instructions)";
+    content:"decrypt"; nocase; http_uri;
+    classtype:ransomware-activity;
+    sid:2000011; rev:2;
+)
