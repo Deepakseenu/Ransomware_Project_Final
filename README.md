@@ -71,80 +71,230 @@ Unlike traditional signature-based antivirus solutions, this project focuses on 
 
 
 Ransomware_Project_Final/
+
+
 │
+
+
 ├── app/
+
+
 │   ├── api/
+
+
 │   │   ├── block_api.py
+
+
 │   │   ├── map_api.py
+
+
 │   │   └── server.py
+
+
 │   │
+
+
 │   ├── config/
+
+
 │   │   └── alert_config.json
+
+
 │   │
+
+
 │   ├── ml/
+
+
 │   │   ├── create_dataset.py
+
+
 │   │   ├── feature_extractor.py
+
+
 │   │   ├── train_model.py
+
+
 │   │   ├── model_predict.py
+
+
 │   │   └── models/
+
+
 │   │       ├── loader.py
+
+
 │   │       └── .gitkeep
+
+
 │   │
+
+
 │   ├── monitor/
+
+
 │   │   ├── alerts.py
+
+
 │   │   ├── config.py
+
+
 │   │   ├── event_emit.py
+
+
 │   │   ├── handlers_os.py
+
+
 │   │   ├── handlers_web.py
+
+
 │   │   ├── lifecycle.py
+
+
 │   │   ├── logger.py
+
+
 │   │   ├── main.py
+
+
 │   │   ├── sandbox_heuristics.py
+
+
 │   │   ├── utils.py
+
+
 │   │   ├── watchers.py
+
+
 │   │   └── yara_engine.py
+
+
 │   │
+
+
 │   ├── prevention/
+
+
 │   │   ├── file_guard.py
+
+
 │   │   ├── integrity_monitor.py
+
+
 │   │   ├── net_guard.py
+
+
 │   │   ├── process_guard.py
+
+
 │   │   ├── quarantine.py
+
+
 │   │   ├── sandbox_engine.py
+
+
 │   │   ├── config.py
+
+
 │   │   └── utils.py
+
+
 │   │
+
+
 │   └── app.py
+
+
 │
+
+
 ├── auth_system/
+
+
 │   ├── auth_app.py
+
+
 │   ├── utils.py
+
+
 │   ├── templates/
+
+
 │   ├── static/
+
+
 │   └── requirements.txt
+
+
 │
+
+
 ├── rules/
+
+
 │   ├── falco_rules_custom.yaml
+
+
 │   └── suricata_ransom.rules
+
+
 │
+
+
 ├── yara/
+
+
 │   └── yara_ransom.yar
+
+
 │
+
+
 ├── static/
+
+
 │   ├── dashboard/
+
+
 │   │   ├── css/
+
+
 │   │   ├── js/
+
+
 │   │   └── libs/
+
+
 │   └── dashboard_soc.html
+
+
 │
+
+
 ├── testing_codes/
+
+
 │   ├── fake_ransom_test.py
+
+
 │   ├── fake_ransom_trigger.py
+
+
 │   └── test.py
+
+
 │
+
+
 ├── honeypot_events_queue.jsonl
+
+
 ├── requirements.txt
+
+
 ├── .gitignore
+
+
 └── README.md
 
 
