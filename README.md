@@ -18,31 +18,31 @@ Unlike traditional signature-based antivirus solutions, this project focuses on 
 
 
 
-Early detection of ransomware behaviour
+1. Early detection of ransomware behaviour
 
 
 
-Real-time monitoring of files, processes, and web activity
+2. Real-time monitoring of files, processes, and web activity
 
 
 
-Prevention of unauthorized file encryption
+3. Prevention of unauthorized file encryption
 
 
 
-Isolation of malicious files using quarantine
+4. Isolation of malicious files using quarantine
 
 
 
-Visualization of security events using a SOC dashboard
+5. Visualization of security events using a SOC dashboard
 
 
 
-Secure access using authentication
+6. Secure access using authentication
 
 
 
-Academic and practical demonstration of ransomware defense techniques
+7. Academic and practical demonstration of ransomware defense techniques
 
 
 
@@ -50,179 +50,103 @@ Academic and practical demonstration of ransomware defense techniques
 
 
 
-Monitoring Layer – Captures file, process, and web events
+1. Monitoring Layer – Captures file, process, and web events
 
 
 
-Detection Layer – Applies rules, YARA, heuristics, and ML
+2. Detection Layer – Applies rules, YARA, heuristics, and ML
 
 
 
-Prevention Layer – Terminates processes, blocks files \& network access
+3. Prevention Layer – Terminates processes, blocks files \& network access
 
 
 
-Honeypot Layer – Traps and analyzes suspicious activity
+4. Honeypot Layer – Traps and analyzes suspicious activity
 
 
 
-Dashboard Layer – Visualizes alerts and events in real time
+5. Dashboard Layer – Visualizes alerts and events in real time
 
 
 
-📂 Project Structure
-
-Ransomware\_Project\_Final/
-
+Ransomware_Project_Final/
 │
-
 ├── app/
-
 │   ├── api/
-
-│   │   ├── block\_api.py
-
-│   │   ├── map\_api.py
-
+│   │   ├── block_api.py
+│   │   ├── map_api.py
 │   │   └── server.py
-
 │   │
-
 │   ├── config/
-
-│   │   └── alert\_config.json
-
+│   │   └── alert_config.json
 │   │
-
 │   ├── ml/
-
-│   │   ├── create\_dataset.py
-
-│   │   ├── feature\_extractor.py
-
-│   │   ├── train\_model.py
-
-│   │   ├── model\_predict.py
-
+│   │   ├── create_dataset.py
+│   │   ├── feature_extractor.py
+│   │   ├── train_model.py
+│   │   ├── model_predict.py
 │   │   └── models/
-
 │   │       ├── loader.py
-
 │   │       └── .gitkeep
-
 │   │
-
 │   ├── monitor/
-
 │   │   ├── alerts.py
-
 │   │   ├── config.py
-
-│   │   ├── event\_emit.py
-
-│   │   ├── handlers\_os.py
-
-│   │   ├── handlers\_web.py
-
+│   │   ├── event_emit.py
+│   │   ├── handlers_os.py
+│   │   ├── handlers_web.py
 │   │   ├── lifecycle.py
-
 │   │   ├── logger.py
-
 │   │   ├── main.py
-
-│   │   ├── sandbox\_heuristics.py
-
+│   │   ├── sandbox_heuristics.py
 │   │   ├── utils.py
-
 │   │   ├── watchers.py
-
-│   │   └── yara\_engine.py
-
+│   │   └── yara_engine.py
 │   │
-
 │   ├── prevention/
-
-│   │   ├── file\_guard.py
-
-│   │   ├── integrity\_monitor.py
-
-│   │   ├── net\_guard.py
-
-│   │   ├── process\_guard.py
-
+│   │   ├── file_guard.py
+│   │   ├── integrity_monitor.py
+│   │   ├── net_guard.py
+│   │   ├── process_guard.py
 │   │   ├── quarantine.py
-
-│   │   ├── sandbox\_engine.py
-
+│   │   ├── sandbox_engine.py
 │   │   ├── config.py
-
 │   │   └── utils.py
-
 │   │
-
 │   └── app.py
-
 │
-
-├── auth\_system/
-
-│   ├── auth\_app.py
-
+├── auth_system/
+│   ├── auth_app.py
 │   ├── utils.py
-
 │   ├── templates/
-
 │   ├── static/
-
 │   └── requirements.txt
-
 │
-
 ├── rules/
-
-│   ├── falco\_rules\_custom.yaml
-
-│   └── suricata\_ransom.rules
-
+│   ├── falco_rules_custom.yaml
+│   └── suricata_ransom.rules
 │
-
 ├── yara/
-
-│   └── yara\_ransom.yar
-
+│   └── yara_ransom.yar
 │
-
 ├── static/
-
 │   ├── dashboard/
-
 │   │   ├── css/
-
 │   │   ├── js/
-
 │   │   └── libs/
-
-│   └── dashboard\_soc.html
-
+│   └── dashboard_soc.html
 │
-
-├── testing\_codes/
-
-│   ├── fake\_ransom\_test.py
-
-│   ├── fake\_ransom\_trigger.py
-
+├── testing_codes/
+│   ├── fake_ransom_test.py
+│   ├── fake_ransom_trigger.py
 │   └── test.py
-
 │
-
-├── honeypot\_events\_queue.jsonl
-
+├── honeypot_events_queue.jsonl
 ├── requirements.txt
-
 ├── .gitignore
-
 └── README.md
+
 
 
 
@@ -232,23 +156,22 @@ Ransomware\_Project\_Final/
 
 
 
-Detects abnormal file access patterns
+- Detects abnormal file access patterns
 
 
-
-Monitors rapid file modifications and encryption-like behavior
-
+  
+- Monitors rapid file modifications and encryption-like behavior
 
 
 🔹 YARA Signature Detection
 
 
 
-Uses yara/yara\_ransom.yar
+- Uses yara/yara\_ransom.yar
 
 
-
-Detects known ransomware patterns
+  
+- Detects known ransomware patterns
 
 
 
@@ -256,11 +179,11 @@ Detects known ransomware patterns
 
 
 
-Scores suspicious behavior
+- Scores suspicious behavior
 
 
 
-Analyzes entropy, file size, execution patterns
+- Analyzes entropy, file size, execution patterns
 
 
 
@@ -268,15 +191,15 @@ Analyzes entropy, file size, execution patterns
 
 
 
-Feature extraction from files
+- Feature extraction from files
 
 
 
-ML model trained using labeled ransomware datasets
+- ML model trained using labeled ransomware datasets
 
 
 
-Reduces false positives
+- Reduces false positives
 
 
 
@@ -284,27 +207,27 @@ Reduces false positives
 
 
 
-Malicious process termination
+* Malicious process termination
 
 
 
-File access blocking
+* File access blocking
 
 
 
-File integrity monitoring
+* File integrity monitoring
 
 
 
-Network blocking (IP-based)
+* Network blocking (IP-based)
 
 
 
-Quarantine of suspicious files
+* Quarantine of suspicious files
 
 
 
-Alert generation \& logging
+* Alert generation \& logging
 
 
 
@@ -312,27 +235,27 @@ Alert generation \& logging
 
 
 
-Real-time event monitoring
+* Real-time event monitoring
 
 
 
-Ransomware alerts
+* Ransomware alerts
 
 
 
-File, process \& network event logs
+* File, process \& network event logs
 
 
 
-Blocked IP list
+* Blocked IP list
 
 
 
-Threat map visualization
+* Threat map visualization
 
 
 
-WebSocket-based live updates
+* WebSocket-based live updates
 
 
 
@@ -340,15 +263,15 @@ WebSocket-based live updates
 
 
 
-Secure login \& registration
+* Secure login \& registration
 
 
 
-Token-based access control
+* Token-based access control
 
 
 
-Prevents unauthorized dashboard access
+* Prevents unauthorized dashboard access
 
 
 
@@ -362,7 +285,7 @@ Make sure your virtual environment is created beforehand.
 
 
 
-source venv\_app/bin/activate
+#source venv\_app/bin/activate
 
 
 
@@ -380,9 +303,9 @@ Navigate to the authentication module and start the auth service:
 
 
 
-cd auth\_system
+#cd auth\_system
 
-python3 auth\_app.py
+#python3 auth\_app.py
 
 
 
@@ -412,7 +335,7 @@ From the project root directory, run:
 
 
 
-uvicorn app.api.server:app --host 0.0.0.0 --port 8000 --reload
+#uvicorn app.api.server:app --host 0.0.0.0 --port 8000 --reload
 
 
 
@@ -438,7 +361,7 @@ Run the main application module:
 
 
 
-python3 -m app.app
+#python3 -m app.app
 
 
 
@@ -464,7 +387,7 @@ To enable real-time ransomware monitoring:
 
 
 
-python3 -m app.monitor.main --debug
+#python3 -m app.monitor.main --debug
 
 
 
@@ -474,23 +397,23 @@ This activates:
 
 
 
-File system monitoring
+1. File system monitoring
 
 
 
-Process \& network tracking
+2. Process \& network tracking
 
 
 
-YARA scanning
+3. YARA scanning
 
 
 
-Heuristic and sandbox analysis
+4. Heuristic and sandbox analysis
 
 
 
-Alert generation
+5. Alert generation
 
 
 
@@ -518,13 +441,13 @@ These scripts simulate ransomware-like behavior for testing purposes.
 
 
 
-Run monitoring components with appropriate permissions.
+- Run monitoring components with appropriate permissions.
 
 
 
-Recommended environment: Linux / Kali Linux.
+- Recommended environment: Linux / Kali Linux.
 
 
 
-This project is intended strictly for academic and defensive cybersecurity research.
+- This project is intended strictly for academic and defensive cybersecurity research.
 
