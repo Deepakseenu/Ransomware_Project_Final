@@ -1,0 +1,330 @@
+/* ============================================================
+   GLOBAL BASE THEME — CYBER SOC
+   ============================================================ */
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: "Inter", sans-serif;
+  background: #0a1520;
+  color: #d8e9f5;
+  overflow-x: hidden;
+}
+
+.content {
+  padding: 28px 32px;
+  min-height: 600px !important;     /* FIXES empty page */
+}
+
+/* Neon glow */
+.neon { text-shadow: 0 0 12px #00eaff; }
+
+/* ============================================================
+   HEADER BAR
+   ============================================================ */
+
+.header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 18px 28px;
+  background: linear-gradient(90deg, #00334e, #00a8cc, #00eaff);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 4px 14px rgba(0,0,0,0.4);
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 0 10px #00eaff;
+}
+
+.status-group {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+/* ============================================================
+   BUTTONS
+   ============================================================ */
+
+button {
+  cursor: pointer;
+  border-radius: 6px;
+  font-weight: 600;
+  border: none;
+  transition: 0.25s ease;
+}
+
+.btn-primary {
+  background: #00eaff;
+  color: #00212e;
+  padding: 8px 20px;
+}
+.btn-primary:hover {
+  transform: scale(1.06);
+  background: #34f1ff;
+}
+
+.btn-danger {
+  background: #ff3b3b;
+  color: white;
+  padding: 8px 20px;
+}
+.btn-danger:hover {
+  transform: scale(1.06);
+  background: #ff6b6b;
+}
+
+.status-badge {
+  padding: 6px 14px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.12);
+  border: 1px solid rgba(255,255,255,0.18);
+  font-size: 14px;
+}
+
+/* ============================================================
+   TAB NAVIGATION — FIXED COMPLETELY
+   ============================================================ */
+
+.tabs {
+  display: flex !important;
+  gap: 22px;
+  padding: 16px 32px !important;
+  background: rgba(255,255,255,0.04);
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+}
+
+.tab {
+  padding: 10px 18px;
+  border-radius: 6px;
+  font-weight: 600;
+  color: #9bcbe8;
+  cursor: pointer;
+  transition: 0.25s ease;
+}
+
+.tab:hover {
+  background: rgba(0,234,255,0.15);
+  color: white;
+}
+
+.tab.active {
+  background: rgba(0,234,255,0.22);
+  color: white;
+  border-bottom: 3px solid #00eaff;
+}
+
+/* ============================================================
+   TAB SECTIONS — CRITICAL FIX
+   ============================================================ */
+
+.tab-section {
+  display: none;           /* default hidden */
+  padding-top: 20px;
+}
+
+.tab-section.active {
+  display: block !important;
+}
+
+/* ============================================================
+   CARD UI
+   ============================================================ */
+
+.card {
+  background: rgba(255,255,255,0.06);
+  padding: 20px 24px;
+  border-radius: 12px;
+  margin-bottom: 22px;
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: 0 6px 20px rgba(0,0,0,0.35);
+}
+
+.card h2, .card h3 {
+  margin-top: 0;
+  margin-bottom: 12px;
+  font-weight: 700;
+  color: #eaf9ff;
+}
+
+/* ============================================================
+   INPUT FIELDS
+   ============================================================ */
+
+input {
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: rgba(255,255,255,0.10);
+  border: 1px solid rgba(0,234,255,0.25);
+  color: white;
+  width: 180px;
+}
+input:focus {
+  outline: none;
+  box-shadow: 0 0 10px #00eaff;
+}
+
+.input-row {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+/* ============================================================
+   OVERVIEW TAB
+   ============================================================ */
+
+.overview-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 24px;
+}
+
+.metric-title {
+  font-size: 18px;
+  font-weight: 700;
+  color: #7fe2ff;
+}
+
+.metric-value {
+  font-size: 32px;
+  font-weight: 700;
+  color: #00eaff;
+  margin-bottom: 10px;
+}
+
+.metric-bar-bg {
+  width: 100%;
+  height: 10px;
+  background: rgba(255,255,255,0.10);
+  border-radius: 8px;
+}
+
+.metric-bar-fill {
+  height: 100%;
+  width: 0%;
+  border-radius: 8px;
+  background: linear-gradient(90deg, #00d4ff, #00ffa6);
+  box-shadow: 0 0 12px #00eaff;
+  transition: width .25s ease-out;
+}
+
+/* ============================================================
+   EVENT LOGS
+   ============================================================ */
+
+/* ===== Overview bottom section layout ===== */
+.grid-logs {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 16px;
+  align-items: stretch;
+}
+
+/* Both cards must be same height */
+.grid-logs .card {
+  height: 360px;              /* 🔑 FIXED HEIGHT */
+  display: flex;
+  flex-direction: column;
+}
+
+
+.timeline-card {
+  height: 330px;
+  overflow: hidden;
+}
+
+.timeline-card pre {
+  height: 270px;
+  overflow-y: auto;
+  background: rgba(0,0,0,0.45);
+  color: #9ef0ff;
+  padding: 14px;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* ============================================================
+   PROCESSES
+   ============================================================ */
+
+.process-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+}
+
+.process-table th {
+  text-align: left;
+  padding: 10px;
+  background: rgba(255,255,255,0.10);
+  font-weight: 700;
+}
+
+.process-table td {
+  padding: 10px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.process-table tr:hover {
+  background: rgba(0,234,255,0.08);
+}
+
+/* ============================================================
+   MAP + THREAT INTEL
+   ============================================================ */
+
+#ipMap {
+  height: 550px;
+  border-radius: 14px;
+  overflow: hidden;
+  margin-top: 10px;
+}
+
+.intel-box {
+  padding: 16px;
+  background: rgba(255,255,255,0.07);
+  border-radius: 10px;
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+
+@media (max-width: 850px) {
+  .grid-logs { grid-template-columns: 1fr; }
+  .status-group { flex-wrap: wrap; justify-content: flex-end; }
+}
+
+/* Event Timeline scroll */
+#overviewEventLog {
+  flex: 1;                    /* fills card */
+  overflow-y: auto;           /* 🔑 scroll inside */
+  white-space: pre-wrap;
+  font-family: monospace;
+  font-size: 12px;
+  line-height: 1.4;
+  padding-right: 6px;
+}
+/* Chart should fully fill its card */
+.grid-logs canvas {
+  flex: 1;
+}
+
+
+.card canvas {
+  width: 100% !important;
+  height: 100% !important;
+}
+.card {
+  display: flex;
+  flex-direction: column;
+}
+

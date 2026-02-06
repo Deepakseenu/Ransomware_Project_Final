@@ -1,17 +1,26 @@
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request
-from fastapi.responses import HTMLResponse, FileResponse, JSONResponse
+# app/api/server.py
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Request, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 import asyncio
 import uvicorn
 import time
 import psutil
-from typing import List, Dict
-from fastapi import HTTPException
+from typing import List, Dict, Any
 
+# REAL firewall engine
+from app.prevention import net_guard
+
+# FastAPI routers
+from app.api import block_api
+from app.api import map_api
+
+
+# ------------------- APP -------------------
 app = FastAPI()
 
-# Allow local dev origins
+# CORS allow all (dashboard loads local JS files)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -20,16 +29,20 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# serve a `static/` folder (dashboard will be there)
-app.mount("/static", StaticFiles(directory="./static"), name="static")
+# Serve modular dashboard
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# --- In-memory stores (simple, persistent only while process runs) ---
-recent_events: List[Dict] = []        # newest first
-blocked_ips: Dict[str, Dict] = {}     # ip -> {ip, reason, last_blocked, added_at}
-quarantine: List[str] = []
-backups: List[str] = []
+# Include API routes
+app.include_router(block_api.router, prefix="/api")
+app.include_router(map_api.router, prefix="/api")
 
-# WebSocket manager
+
+# ------------------- LIVE EVENT SYSTEM -------------------
+
+recent_events: List[Dict] = []
+_event_queue: asyncio.Queue = asyncio.Queue()
+
+
 class ConnectionManager:
     def __init__(self):
         self.active: List[WebSocket] = []
@@ -46,203 +59,232 @@ class ConnectionManager:
                 self.active.remove(ws)
 
     async def broadcast(self, message: Dict):
-        # send message to all websocket clients concurrently
         async with self.lock:
-            remove = []
+            dead = []
             for ws in list(self.active):
                 try:
                     await ws.send_json(message)
-                except Exception:
-                    remove.append(ws)
-            for r in remove:
-                if r in self.active:
-                    self.active.remove(r)
+                except:
+                    dead.append(ws)
+            for ws in dead:
+                if ws in self.active:
+                    self.active.remove(ws)
+
 
 manager = ConnectionManager()
 
-# An asyncio queue for internal event ingestion
-_event_queue: asyncio.Queue = asyncio.Queue()
 
 async def _broadcaster_loop():
-    """Background task: pull from queue and broadcast to connected websockets."""
+    """Push queued events to all WebSocket dashboards with smooth CPU usage."""
     while True:
-        data = await _event_queue.get()
-        # store in recent_events (cap 500)
-        recent_events.insert(0, data)
+        event = await _event_queue.get()
+
+        # small sleep prevents server freeze when many events arrive quickly
+        await asyncio.sleep(0.01)
+
+        recent_events.insert(0, event)
         if len(recent_events) > 500:
             recent_events.pop()
-        # also broadcast
-        await manager.broadcast({"type": "new_event", "data": data})
 
-@app.on_event("startup")
-async def startup_event():
-    # start broadcaster background task
-    asyncio.create_task(_broadcaster_loop())
+        try:
+            await manager.broadcast({"type": "new_event", "data": event})
+        except:
+            pass
 
-# Helper to push an event into the pipeline
+
 async def push_event(event: Dict):
-    # Add timestamp if missing
+    """External modules call this - safe and lightweight."""
     if "ts" not in event:
         event["ts"] = time.time()
     await _event_queue.put(event)
 
-# -------------------- API endpoints --------------------
 
-@app.post("/api/push_event")
-async def api_push_event(req: Request):
-    obj = await req.json()
-    await push_event(obj)
-    return JSONResponse({"ok": True})
+@app.on_event("startup")
+async def on_start():
+    asyncio.create_task(_broadcaster_loop())
+
+
+# ---------------------------------------------------------
+# API ENDPOINTS
+# ---------------------------------------------------------
 
 @app.get("/api/events")
-async def api_get_events(limit: int = 100):
+async def api_events(limit: int = 200):
     return JSONResponse(recent_events[:limit])
+
+
+@app.post("/api/test_event")
+async def api_test_event(req: Request):
+    body = await req.json()
+    ev = {
+        "type": body.get("type", "manual_test"),
+        "detail": body.get("detail", {}),
+        "source": "http_test"
+    }
+    await push_event(ev)
+    return JSONResponse({"ok": True, "queued": ev})
+
 
 @app.get("/api/live_status")
 async def api_live_status():
     cpu = psutil.cpu_percent(interval=0.1)
     mem = psutil.virtual_memory().percent
     net = psutil.net_io_counters()
-    return JSONResponse({
+    blocked = net_guard.list_blocked() or []
+    return {
         "cpu": cpu,
         "memory": mem,
         "bytes_sent": net.bytes_sent,
         "bytes_recv": net.bytes_recv,
         "recent_events": len(recent_events),
-        "blocked_ips": len(blocked_ips),
-    })
+        "blocked_ips": len(blocked),
+    }
+
+
+def normalize_netguard(raw: Any):
+    out = []
+    if isinstance(raw, list):
+        for ip in raw:
+            if isinstance(ip, str):
+                out.append({"ip": ip, "reason": "firewall", "time": int(time.time())})
+            elif isinstance(ip, dict) and ip.get("ip"):
+                out.append(ip)
+    elif isinstance(raw, dict):
+        for ip, meta in raw.items():
+            obj = {"ip": ip}
+            if isinstance(meta, dict):
+                obj.update(meta)
+            out.append(obj)
+    return out
+
 
 @app.get("/api/blocked_ips")
 async def api_blocked_ips():
-    # return as list
-    return JSONResponse(list(blocked_ips.values()))
+    raw = net_guard.list_blocked()
+    return JSONResponse(normalize_netguard(raw))
 
-@app.post("/api/block_ip")
-async def api_block_ip(req: Request):
-    body = await req.json()
-    ip = body.get("ip")
-    reason = body.get("reason", "manual")
-    if not ip:
-        return JSONResponse({"ok": False, "error": "missing ip"}, status_code=400)
-    blocked_ips[ip] = {"ip": ip, "reason": reason, "last_blocked": time.ctime(), "added_at": time.time()}
-    # TODO: here you could call `iptables` or `nft` command to actually block — omitted for safety
-    await push_event({"type": "net", "action": "block", "detail": {"ip": ip, "reason": reason}})
-    return JSONResponse({"ok": True, "ip": ip})
-
-@app.post("/api/unblock_ip")
-async def api_unblock_ip(req: Request):
-    body = await req.json()
-    ip = body.get("ip")
-    if not ip or ip not in blocked_ips:
-        return JSONResponse({"ok": False, "error": "unknown ip"}, status_code=400)
-    blocked_ips.pop(ip, None)
-    # TODO: remove from firewall
-    await push_event({"type": "net", "action": "unblock", "detail": {"ip": ip}})
-    return JSONResponse({"ok": True, "ip": ip})
-
-@app.get("/api/list_quarantine")
-async def api_list_quarantine():
-    return JSONResponse(quarantine)
-
-@app.get("/api/list_backup")
-async def api_list_backup():
-    return JSONResponse(backups)
 
 @app.get("/api/process_list")
 async def api_process_list():
-    procs = []
+    out = []
     for p in psutil.process_iter(['pid', 'name']):
         try:
             info = p.as_dict(attrs=['pid', 'name'])
-            info['cpu_percent'] = p.cpu_percent(interval=0.0)
-            info['memory_percent'] = p.memory_percent()
-            procs.append(info)
-        except Exception:
+            info["cpu_percent"] = p.cpu_percent(interval=0.0)
+            info["memory_percent"] = p.memory_percent()
+            out.append(info)
+        except:
             pass
 
-    procs = sorted(procs, key=lambda x: x.get('cpu_percent', 0), reverse=True)[:200]
-    return JSONResponse(procs)
+    out = sorted(out, key=lambda x: x.get("cpu_percent", 0), reverse=True)[:200]
+    return JSONResponse(out)
 
+
+# ------------------- DASHBOARD -------------------
 @app.get("/dashboard")
-async def dashboard_html():
-    return FileResponse("./static/dashboard.html")
+async def dashboard_page():
+    return FileResponse("static/dashboard/index.html")
 
-# WebSocket endpoint for live events
+
+
+# ------------------- WEBSOCKET -------------------
 @app.websocket("/ws/events")
 async def ws_events(websocket: WebSocket):
     await manager.connect(websocket)
     try:
         while True:
-            # keep connection open; client may send pings
             msg = await websocket.receive_text()
-            # we do not require any specific client messages; if client sends 'ping' respond
-            if msg.strip().lower() == 'ping':
-                await websocket.send_text('pong')
+            if msg.lower().strip() == "ping":
+                await websocket.send_text("pong")
     except WebSocketDisconnect:
         await manager.disconnect(websocket)
-    except Exception:
+    except:
         await manager.disconnect(websocket)
 
 
-# ---------------- Monitor control endpoints ----------------
+# ------------------- MONITOR CONTROL -------------------
 
 @app.post("/api/monitor/start")
 async def api_monitor_start():
-    """
-    Try to start the monitor lifecycle in-process.
-    NOTE: This only works if monitor package is importable and starting it in the same process is desired.
-    If your monitor runs as a separate process (python -m app.monitor.main), call that externally instead.
-    """
     try:
         import importlib
         lifecycle = importlib.import_module("app.monitor.lifecycle")
-    except Exception as e:
-        return JSONResponse({"ok": False, "error": "monitor module not importable in this process", "detail": str(e)})
-
-    try:
-        # call start() (synchronous)
         lifecycle.start()
         running = getattr(lifecycle, "is_running", lambda: True)()
-        return JSONResponse({"ok": True, "started": True, "running": running})
+        return {"ok": True, "started": True, "running": running}
     except Exception as e:
-        return JSONResponse({"ok": False, "error": str(e)})
+        return {"ok": False, "error": str(e)}
+
 
 @app.post("/api/monitor/stop")
 async def api_monitor_stop():
-    """
-    Try to stop the monitor lifecycle in-process.
-    If monitor is a separate process, this will not stop that external process.
-    """
     try:
         import importlib
         lifecycle = importlib.import_module("app.monitor.lifecycle")
-    except Exception as e:
-        return JSONResponse({"ok": False, "error": "monitor module not importable in this process", "detail": str(e)})
-
-    try:
         lifecycle.shutdown()
         running = getattr(lifecycle, "is_running", lambda: False)()
-        return JSONResponse({"ok": True, "stopped": True, "running": running})
+        return {"ok": True, "stopped": True, "running": running}
     except Exception as e:
-        return JSONResponse({"ok": False, "error": str(e)})
+        return {"ok": False, "error": str(e)}
+
 
 @app.get("/api/monitor/status")
 async def api_monitor_status():
-    """
-    Query monitor status (in-process).
-    Returns a clear message if monitor lifecycle is not importable in this FastAPI process.
-    """
     try:
         import importlib
         lifecycle = importlib.import_module("app.monitor.lifecycle")
-    except Exception as e:
-        return JSONResponse({"ok": False, "importable": False, "error": "monitor module not importable", "detail": str(e)})
-
-    try:
         running = getattr(lifecycle, "is_running", lambda: False)()
-        return JSONResponse({"ok": True, "importable": True, "running": bool(running)})
+        return {"ok": True, "importable": True, "running": bool(running)}
     except Exception as e:
-        return JSONResponse({"ok": False, "error": str(e)})
+        return {"ok": False, "importable": False, "error": str(e)}
 
-if __name__ == '__main__':
-    uvicorn.run('app.api.server:app', host='0.0.0.0', port=8000, reload=True)
+
+from fastapi import Body
+
+@app.post("/api/push_event")
+async def api_push_event(payload: dict = Body(...)):
+    event = {}
+    event["type"] = (
+        payload.get("type")
+        or payload.get("event_type")
+        or payload.get("evt")
+        or payload.get("category")
+        or "monitor_event"
+    )
+
+    event["action"] = (
+        payload.get("action")
+        or payload.get("op")
+        or payload.get("verb")
+        or None
+    )
+
+    detail = payload.get("detail") or payload.get("payload") or payload.get("data") or {}
+
+    if isinstance(detail, dict) and detail == {}:
+        detail = {
+            k: v for k, v in payload.items()
+            if k not in ("type", "event_type", "action", "op", "verb", "ts", "payload", "detail", "data")
+        }
+
+    event["detail"] = detail
+
+    ts = payload.get("ts") or payload.get("time")
+    if ts:
+        try:
+            tsf = float(ts)
+            if tsf > 1e12:   # ms conversion
+                tsf /= 1000.0
+            event["ts"] = tsf
+        except:
+            event["ts"] = time.time()
+    else:
+        event["ts"] = time.time()
+
+    await push_event(event)
+    return JSONResponse({"ok": True, "queued": event})
+
+
+# ------------------- RUN -------------------
+if __name__ == "__main__":
+    uvicorn.run("app.api.server:app", host="0.0.0.0", port=8000)

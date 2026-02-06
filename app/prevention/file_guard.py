@@ -12,8 +12,24 @@ from pathlib import Path
 from .logger import logger
 from .utils import sha256
 from .quarantine import backup_and_quarantine, create_decoy_at_path
-from .sandbox_heuristics import analyze_file as sandbox_analysis
-from .event_emit import safe_emit
+from app.monitor.main import _SANDBOX
+from app.monitor.event_emit import safe_emit
+
+from watchdog.events import FileSystemEventHandler
+
+# --- ALERT CONFIG ---
+from pathlib import Path as P
+import json
+from app.monitor.alerts import trigger_alert
+
+_cfg_path = P(__file__).resolve().parents[2] / "config" / "alert_config.json"
+try:
+    with open(_cfg_path, "r") as _f:
+        ALERT_CONFIG = json.load(_f)
+except Exception:
+    ALERT_CONFIG = {}
+# ------------------------------------------------
+
 from .config import (
     BASELINE_PATH,
     INTEGRITY_INTERVAL,
@@ -24,8 +40,8 @@ from .config import (
 
 class FileGuard:
     """
-    FileGuard monitors selected directories and triggers quarantine ONLY when
-    sandbox analysis confirms the file is suspicious.
+    FileGuard monitors directories & triggers quarantine when
+    sandbox analysis marks file as suspicious.
     """
 
     IGNORED_DIRS = {
@@ -48,6 +64,9 @@ class FileGuard:
 
     IGNORED_FILES = {BASELINE_PATH}
 
+    # -------------------------------------------------------------
+    # Init
+    # -------------------------------------------------------------
     def __init__(self, watch_dirs, helpers=None):
         self.watch_dirs = watch_dirs
         self.helpers = helpers or {}
@@ -55,13 +74,21 @@ class FileGuard:
         self._stop = threading.Event()
         self._thread = None
 
+        # watchdog compatibility placeholders
+        self.observer = None
+        self.watchdog_observer = None
+        self.observers = None
+
         Path(BASELINE_PATH).parent.mkdir(parents=True, exist_ok=True)
+
         self._load_or_create_baseline()
 
-    # ---------------------------------------------------------
-    # Filtering
-    # ---------------------------------------------------------
+        # Use global Sandbox
+        self.sandbox = _SANDBOX
 
+    # -------------------------------------------------------------
+    # Utility
+    # -------------------------------------------------------------
     def _normalize(self, p: str) -> str:
         return os.path.abspath(os.path.realpath(p))
 
@@ -82,16 +109,14 @@ class FileGuard:
         if self._is_excluded(p):
             return True
 
-        # ignore browser lock files
         if os.path.basename(p) in {"lock", ".lock"}:
             return True
 
         return False
 
-    # ---------------------------------------------------------
+    # -------------------------------------------------------------
     # Baseline
-    # ---------------------------------------------------------
-
+    # -------------------------------------------------------------
     def _load_or_create_baseline(self):
         if os.path.exists(BASELINE_PATH):
             try:
@@ -102,6 +127,7 @@ class FileGuard:
 
         if not self._baseline:
             logger.info("Building new baseline...")
+
             for d in self.watch_dirs:
                 d = self._normalize(d)
                 if not os.path.exists(d):
@@ -126,10 +152,9 @@ class FileGuard:
         except Exception as e:
             logger.error(f"Baseline save error: {e}")
 
-    # ---------------------------------------------------------
-    # Start/Stop
-    # ---------------------------------------------------------
-
+    # -------------------------------------------------------------
+    # Start / Stop
+    # -------------------------------------------------------------
     def start(self):
         if self._thread and self._thread.is_alive():
             return
@@ -138,110 +163,113 @@ class FileGuard:
         logger.info("FileGuard started.")
 
     def stop(self):
+        logger.info("FileGuard stop requested.")
         self._stop.set()
 
-    # ---------------------------------------------------------
-    # Handle change — NOW SAFE WITH SANDBOX CHECK
-    # ---------------------------------------------------------
+        for attr in ("observer", "watchdog_observer", "observers"):
+            obs = getattr(self, attr, None)
+            if not obs:
+                continue
 
+            if isinstance(obs, (list, tuple)):
+                for o in obs:
+                    try: o.stop()
+                    except: pass
+                    try: o.join(timeout=1)
+                    except: pass
+            else:
+                try: obs.stop()
+                except: pass
+                try: obs.join(timeout=2)
+                except: pass
+
+        if self._thread and self._thread.is_alive():
+            try:
+                self._thread.join(timeout=2)
+            except:
+                pass
+
+        logger.info("FileGuard stopped.")
+
+    # -------------------------------------------------------------
+    # File Change Handler
+    # -------------------------------------------------------------
     def _handle_change(self, path, old_hash, new_hash):
         logger.warning(f"[FILEGUARD] Change detected: {path}")
 
-        # Notify dashboard
         safe_emit("file_guard", {
             "action": "changed",
-            "detail": {
-                "path": path,
-                "old_hash": old_hash,
-                "new_hash": new_hash
-            }
+            "detail": {"path": path, "old_hash": old_hash, "new_hash": new_hash}
         })
 
-        # ----------------------------------------------------
-        # 1) Run sandbox BEFORE any destructive action
-        # ----------------------------------------------------
-        analysis = sandbox_analysis(path)
+        # --- Honeypot / Decoy Tampering Alert ---
+        if "decoys" in path:
+            msg = f"Honeypot hit: decoy file modified: {path}"
+            logger.critical(msg)
+            trigger_alert(msg, ALERT_CONFIG, level="HIGH")
+
+        # ---------------------------------------------------------
+        # Run sandbox BEFORE deciding
+        # ---------------------------------------------------------
+        try:
+            analysis = self.sandbox.analyze(path)
+        except Exception as e:
+            logger.error(f"Sandbox error for {path}: {e}")
+            analysis = {"suspicious": False, "error": True}
 
         if not analysis.get("suspicious"):
             logger.info(f"[FILEGUARD] Benign change ignored: {path}")
 
             safe_emit("file_guard", {
                 "action": "benign",
-                "detail": {
-                    "path": path,
-                    "analysis": analysis
-                }
+                "detail": {"path": path, "analysis": analysis}
             })
 
-            # Update baseline → stay consistent
             try:
                 if os.path.exists(path):
                     self._baseline[path] = sha256(path)
                 else:
                     self._baseline.pop(path, None)
                 self._save()
-            except Exception:
+            except:
                 pass
 
             return
 
-        # ----------------------------------------------------
-        # 2) Suspicious change → quarantine
-        # ----------------------------------------------------
+        # ---------------------------------------------------------
+        # Suspicious → QUARANTINE
+        # ---------------------------------------------------------
         logger.warning(f"[FILEGUARD] Suspicious file - quarantining: {path}")
 
         safe_emit("file_guard", {
             "action": "suspicious",
-            "detail": {
-                "path": path,
-                "analysis": analysis
-            }
+            "detail": {"path": path, "analysis": analysis}
         })
 
         meta = backup_and_quarantine(path, "file_guard_detected")
 
         safe_emit("file_guard", {
             "action": "quarantined",
-            "detail": {
-                "path": path,
-                "meta": meta
-            }
+            "detail": {"path": path, "meta": meta}
         })
 
-        # External helper support
-        if "emit_event" in self.helpers:
-            try:
-                self.helpers["emit_event"]({
-                    "type": "file_guard",
-                    "path": path,
-                    "old_hash": old_hash,
-                    "new_hash": new_hash,
-                    "analysis": analysis,
-                    "meta": meta
-                })
-            except Exception:
-                logger.debug("helpers.emit_event failed")
-
-        # Create decoy
         try:
             create_decoy_at_path(path)
         except Exception as e:
             logger.warning(f"Decoy creation failed: {e}")
 
-        # Update baseline after quarantine
         try:
             if os.path.exists(path):
                 self._baseline[path] = sha256(path)
             else:
                 self._baseline.pop(path, None)
             self._save()
-        except Exception:
+        except:
             pass
 
-    # ---------------------------------------------------------
+    # -------------------------------------------------------------
     # Loop
-    # ---------------------------------------------------------
-
+    # -------------------------------------------------------------
     def _loop(self):
         while not self._stop.is_set():
             changes = []
@@ -258,20 +286,18 @@ class FileGuard:
                     changes.append((path, old_hash, None))
                     self._baseline.pop(path, None)
 
-            # MASS CHANGE (ransomware burst)
+            # MASS change alert
             if len(changes) >= MASS_CHANGE_THRESHOLD:
-                logger.critical(f"[FileGuard] MASS CHANGE DETECTED ({len(changes)} files)")
+                msg = f"[FileGuard] MASS CHANGE DETECTED ({len(changes)} files)"
+                logger.critical(msg)
+                trigger_alert(msg, ALERT_CONFIG, level="HIGH")
 
                 safe_emit("file_guard", {
                     "action": "mass_change",
                     "detail": {"count": len(changes)}
                 })
 
-                for p, old_h, new_h in changes:
-                    self._handle_change(p, old_h, new_h)
-
-            else:
-                for p, old_h, new_h in changes:
-                    self._handle_change(p, old_h, new_h)
+            for p, old_h, new_h in changes:
+                self._handle_change(p, old_h, new_h)
 
             time.sleep(INTEGRITY_INTERVAL)

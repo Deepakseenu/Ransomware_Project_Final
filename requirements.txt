@@ -1,13 +1,26 @@
+# --- Web Backend ---
 Flask==2.3.3
+Werkzeug==2.3.7
 flask-socketio==5.3.6
 python-socketio==5.9.0
-python-engineio==4.12.3
-eventlet==0.33.3
+python-engineio==4.9.1
 
+eventlet==0.33.3  # required for async socketio
+
+# --- File & System Monitoring ---
 watchdog==3.0.0
 psutil==5.9.5
+
+# --- Security / Detection ---
+yara-python==4.5.0
+
+# --- Utility ---
 requests==2.31.0
 python-dotenv==1.0.0
+
+# --- Deployment ---
 gunicorn==21.2.0
 
-yara-python==4.5.0
+
+# --- Optional but recommended (your logs, threading improvements) ---
+coloredlogs==15.0.1

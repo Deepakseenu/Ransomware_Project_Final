@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Honeypot SOC Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+  <!-- Tailwind CSS -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+
+  <!-- Leaflet + MarkerCluster -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+
+  <!-- ✅ Chart.js UMD (GLOBAL Chart object) -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+
+  <!-- Base CSS -->
+  <link rel="stylesheet" href="/static/dashboard/css/styles.css">
+  <link rel="stylesheet" href="/static/dashboard/css/events.css">
+  <link rel="stylesheet" href="/static/dashboard/css/theme.css">
+</head>
+
+<body class="theme-overview">
+
+  <div id="root">
+
+    <!-- HEADER -->
+    <header class="header-bar">
+      <div class="title">Honeypot SOC Dashboard</div>
+
+      <div class="status-group">
+        <button id="startMonitor" class="btn-primary">▶ Start</button>
+        <button id="stopMonitor" class="btn-danger">⏹ Stop</button>
+
+        <span id="monitorStatus" class="status-badge">unknown</span>
+        <span id="wsStatus" class="status-badge">ws: disconnected</span>
+      </div>
+    </header>
+
+    <!-- Tabs -->
+    <nav id="tabs" class="tabs"></nav>
+
+    <!-- Main content -->
+    <main id="content" class="content"></main>
+  </div>
+
+  <!-- Leaflet -->
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+
+  <!-- ✅ Main Dashboard JS (ES module, loads LAST) -->
+  <script type="module" src="/static/dashboard/js/main.js"></script>
+
+</body>
+</html>

@@ -1,0 +1,46 @@
+/* static/dashboard/css/events.css */
+
+/* layout */
+.events-controls{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  gap:12px;
+  margin-bottom:8px;
+}
+.events-controls .filter-group{display:flex;align-items:center;gap:8px}
+.events-controls .filter-btn{
+  border:0;padding:6px 10px;border-radius:8px;background:rgba(255,255,255,0.03);color:inherit;cursor:pointer;font-weight:600;
+}
+.events-controls .filter-btn.active{background:rgba(0,188,212,0.12);border-bottom:2px solid rgba(0,188,212,0.3)}
+
+.events-controls #eventSearch{
+  padding:6px 10px;border-radius:8px;border:1px solid rgba(255,255,255,0.05);min-width:240px;background:transparent;color:inherit;
+}
+.btn-small{padding:6px 8px;border-radius:8px;border:0;background:#123; color:#fff;cursor:pointer}
+
+/* table */
+.events-wrap{border-radius:10px;overflow:hidden;background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));box-shadow:0 6px 18px rgba(0,0,0,0.5)}
+.events-table{width:100%;border-collapse:collapse;font-size:13px}
+.events-table thead th{padding:10px;text-align:left;position:sticky;top:0;background:rgba(0,0,0,0.25);backdrop-filter:blur(4px);z-index:2}
+.events-table tbody td{padding:10px;border-top:1px solid rgba(255,255,255,0.02);vertical-align:middle}
+.ev-row{transition:background .18s ease}
+.ev-row.ev-highlight{background:rgba(0,188,212,0.06)}
+.ev-time{width:170px;color:#9edbf0}
+.ev-type{width:140px;font-weight:700}
+.ev-action{width:140px;color:#cfe9ff}
+.ev-info{color:#dfeeff;max-width:360px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ev-sev{width:90px;text-align:center}
+.ev-more{text-align:right;width:70px}
+
+/* badges */
+.ev-badge{padding:4px 8px;border-radius:999px;font-weight:700;font-size:11px}
+.ev-low{background:rgba(0,200,120,0.06);color:#9ef0c9}
+.ev-medium{background:rgba(255,180,0,0.06);color:#ffd38a}
+.ev-high{background:rgba(255,60,60,0.06);color:#ff9e9e}
+
+/* modal */
+.ev-modal{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:rgba(2,6,23,0.6);z-index:9999}
+.ev-modal-content{background:linear-gradient(180deg,#071a2b,#0b2436);padding:18px;border-radius:12px;width:min(900px,95%);max-height:90vh;overflow:auto;border:1px solid rgba(255,255,255,0.04)}
+.ev-modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;color:#e6f3ff}
+.ev-json{background:#02131b;padding:12px;border-radius:8px;color:#bfeefc;white-space:pre-wrap;font-size:13px}

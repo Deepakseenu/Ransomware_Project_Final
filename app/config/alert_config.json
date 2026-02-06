@@ -1,0 +1,12 @@
+{
+  "email_enabled": true,
+  "email": {
+    "server": "smtp.gmail.com",
+    "port": 587,
+    "tls": true,
+    "from": "deepakseenur12@gmail.com",
+    "to": "deepakr3012@gmail.com",
+    "username": "deepakseenur12@gmail.com",
+    "password": "mblm ixsr rydd qsrn"
+  }
+}

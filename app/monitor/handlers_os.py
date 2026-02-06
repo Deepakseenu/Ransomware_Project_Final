@@ -6,8 +6,21 @@ from typing import Optional
 from .utils import safe_copy
 from .sandbox_heuristics import analyze_file
 from .event_emit import safe_emit
-from .logger import logger
+from app.monitor.logger import logger
 from .config import BACKUP_DIR
+
+# --- ALERT CONFIG ---
+from pathlib import Path
+import json
+from app.monitor.alerts import trigger_alert
+
+_cfg_path = Path(__file__).resolve().parents[2] / "config" / "alert_config.json"
+try:
+    with open(_cfg_path, "r") as _f:
+        ALERT_CONFIG = json.load(_f)
+except Exception:
+    ALERT_CONFIG = {}
+# ------------------------------------------------
 
 helpers = {}
 
@@ -18,9 +31,7 @@ def set_helpers(h):
 class OSHandler(FileSystemEventHandler):
 
     def _emit_file_event(self, action: str, path: str, extra: dict = None):
-        """
-        Helper to send consistent file events to dashboard.
-        """
+        """Helper to send consistent file events to dashboard."""
         payload = {"action": action, "detail": {"path": path}}
         if extra:
             payload["detail"].update(extra)
@@ -33,10 +44,9 @@ class OSHandler(FileSystemEventHandler):
         path = os.path.abspath(event.src_path)
         logger.info("OS created: %s", path)
 
-        # Emit simple event
         self._emit_file_event("created", path)
 
-        # Run heuristics
+        # Heuristic analysis
         try:
             analysis = analyze_file(path)
             self._emit_file_event("analysis", path, {"analysis": analysis})
@@ -44,7 +54,6 @@ class OSHandler(FileSystemEventHandler):
             logger.debug("analysis on_created failed: %s", e)
             return
 
-        # If suspicious, escalate
         if analysis.get("suspicious"):
             handler = helpers.get("handle_suspicious")
             if handler:
@@ -60,10 +69,9 @@ class OSHandler(FileSystemEventHandler):
         path = os.path.abspath(event.src_path)
         logger.info("OS modified: %s", path)
 
-        # Emit simple event
         self._emit_file_event("modified", path)
 
-        # Auto-backup certain extensions
+        # Auto-backup for important file types
         _, ext = os.path.splitext(path)
         if ext.lower() in [".jpg", ".png", ".pdf", ".docx", ".doc"]:
             try:
@@ -73,7 +81,7 @@ class OSHandler(FileSystemEventHandler):
             except Exception as e:
                 logger.debug("backup failed: %s", e)
 
-        # Run heuristics
+        # Heuristic analysis
         try:
             analysis = analyze_file(path)
             self._emit_file_event("analysis", path, {"analysis": analysis})
@@ -81,7 +89,6 @@ class OSHandler(FileSystemEventHandler):
             logger.debug("analysis on_modified failed: %s", e)
             return
 
-        # Suspicious detection
         if analysis.get("suspicious"):
             handler = helpers.get("handle_suspicious")
             if handler:
@@ -89,3 +96,15 @@ class OSHandler(FileSystemEventHandler):
                     handler(path, "file_modified_suspicious", analysis)
                 except Exception:
                     logger.debug("helpers.handle_suspicious failed")
+
+    # ---------------------------------------------
+    # (Optional) Future: Rapid change detection
+    # This is where the alert should be triggered
+    # ---------------------------------------------
+    def trigger_rapid_change_alert(self, watched_dir, change_count, interval):
+        msg = (
+            f"Rapid file modification detected in {watched_dir} "
+            f"(count={change_count} in {interval}s)"
+        )
+        logger.warning(msg)
+        trigger_alert(msg, ALERT_CONFIG, level="HIGH")

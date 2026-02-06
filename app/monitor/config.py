@@ -24,7 +24,11 @@ WINDOW_SECONDS = int(os.getenv("HP_WINDOW_SECONDS", "6"))
 MOD_THRESHOLD = int(os.getenv("HP_MOD_THRESHOLD", "30"))
 CREATE_THRESHOLD = int(os.getenv("HP_CREATE_THRESHOLD", "20"))
 HIGH_ENTROPY_THRESHOLD = float(os.getenv("HP_HIGH_ENTROPY_THRESHOLD", "7.5"))
-YARA_RULE_PATH = os.getenv("HP_YARA_RULE_PATH", str(Path(__file__).resolve().parent.parent / "yara" / "yara_ransom.yar"))
+YARA_RULE_PATH = os.getenv(
+    "HP_YARA_RULE_PATH",
+    str(Path(__file__).resolve().parents[2] / "yara" / "yara_ransom.yar")
+)
+
 
 # Access logs to search for correlated IPs
 ACCESS_LOG_PATHS = [

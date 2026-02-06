@@ -1,90 +1,122 @@
-# ============================
-# Suricata Ransomware Detection Rules
-# Improved + Normalized
-# ============================
+# =========================
+# Improved Suricata Ransomware Rules
+# =========================
 
-# --- Large outbound POST request (possible exfiltration) ---
+# 1) Large outbound HTTP POST likely exfiltration — check Content-Length >= 500KB
 alert http any any -> any any (
-    msg:"[RANSOM] Large HTTP POST - Possible Exfiltration";
+    msg:"[RANSOM] Large HTTP POST - possible exfiltration (Content-Length >= 500KB)";
     flow:established,to_server;
-    http.method; content:"POST";
-    http.header;
-    pcre:"/Content-Length:\s([5-9][0-9]{6,})/i";
+    http.method; content:"POST"; http_header;
+    pcre:"/Content-Length:\s*([5-9][0-9]{5,}|[1-9][0-9]{6,})/i";
     classtype:exfiltration;
-    sid:2000001; rev:3;
+    metadata:service http, severity major, created_by assistant;
+    sid:2000001; rev:4;
 )
 
-# --- Known ransomware C2 domain (example placeholder) ---
+# Alternative more reliable approach if Suricata supports byte_test on body length (uncomment if supported)
+# alert http any any -> any any (
+#     msg:"[RANSOM] Large HTTP POST - body size > 500KB (byte_test)";
+#     flow:established,to_server;
+#     http.method; content:"POST";
+#     byte_test:4,>,512000,0,relative;  # checks body length (implementation dependent)
+#     classtype:exfiltration;
+#     sid:2000001; rev:4;
+# )
+
+# 2) Known ransomware C2 domain - placeholder. Use with a vetted feed (low volume)
 alert dns any any -> any any (
-    msg:"[RANSOM] DNS query to known ransomware C2";
-    dns.query; content:"suspicious-c2.example.com";
+    msg:"[RANSOM] DNS query to known ransomware C2 (example)";
+    dns.query; pcre:"/(^|\.)suspicious-c2\.example\.com$/i";
     classtype:trojan-activity;
-    sid:2000002; rev:2;
+    metadata:service dns, severity high, feed:custom-c2;
+    sid:2000002; rev:3;
 )
 
-# --- Encrypted file extensions in URLs (.enc/.crypt/.locked) ---
+# 3) Encrypted file extensions requested via URL — require extension AND README-like pattern or small file download
 alert http any any -> any any (
-    msg:"[RANSOM] Request for encrypted file (.locked)";
+    msg:"[RANSOM] HTTP request for likely encrypted file (.locked/.enc/.crypt) - possible exfil or artifact retrieval";
+    flow:established,to_server;
     uricontent:".locked"; nocase;
+    http.method; content:"GET"; http_uri;
+    threshold:type limit, track by_src, count 5, seconds 60;
     classtype:ransomware-activity;
-    sid:2000003; rev:2;
-)
-alert http any any -> any any (
-    msg:"[RANSOM] Request for encrypted file (.enc)";
-    uricontent:".enc"; nocase;
-    classtype:ransomware-activity;
-    sid:2000004; rev:2;
-)
-alert http any any -> any any (
-    msg:"[RANSOM] Request for encrypted file (.crypt)";
-    uricontent:".crypt"; nocase;
-    classtype:ransomware-activity;
-    sid:2000005; rev:2;
+    metadata:service http, severity medium;
+    sid:2000003; rev:3;
 )
 
-# --- SMB Lateral Movement ---
+alert http any any -> any any (
+    msg:"[RANSOM] HTTP request for .enc file in URI (suspicious)";
+    flow:established,to_server;
+    uricontent:".enc"; nocase; http_uri;
+    threshold:type limit, track by_src, count 5, seconds 60;
+    classtype:ransomware-activity;
+    metadata:service http, severity medium;
+    sid:2000004; rev:3;
+)
+
+alert http any any -> any any (
+    msg:"[RANSOM] HTTP request for .crypt file in URI (suspicious)";
+    flow:established,to_server;
+    uricontent:".crypt"; nocase; http_uri;
+    threshold:type limit, track by_src, count 5, seconds 60;
+    classtype:ransomware-activity;
+    metadata:service http, severity medium;
+    sid:2000005; rev:3;
+)
+
+# 4) SMB Lateral Movement — detect burst connections to TCP/445 from same source (tunable)
 alert tcp any any -> any 445 (
-    msg:"[RANSOM] SMB Lateral Movement Traffic Spike";
+    msg:"[RANSOM] SMB lateral movement - connection spike to port 445";
     flow:established;
-    threshold:type both, track by_src, count 20, seconds 60;
+    threshold:type both, track by_src, count 15, seconds 60;
     classtype:worm-activity;
-    sid:2000006; rev:1;
+    metadata:service smb, severity high;
+    sid:2000006; rev:2;
 )
 
-# --- DGA (algorithm-generated domains) ---
+# 5) DGA-like DNS queries (very long single-label domain); require additional score or feed correlation
 alert dns any any -> any any (
-    msg:"[RANSOM] Suspicious DNS Query - Possible DGA domain";
+    msg:"[RANSOM] Suspicious DNS Query - possible DGA (long single label)";
     dns.query;
-    pcre:"/^[a-z0-9]{20,}\./";
+    pcre:"/([a-z0-9]{20,})\.(?:[a-z]{2,})$/i";
+    threshold:type limit, track by_src, count 10, seconds 300;
     classtype:trojan-activity;
-    sid:2000007; rev:2;
+    metadata:service dns, severity medium;
+    sid:2000007; rev:3;
 )
 
-# --- Tor Ports Detection ---
+# 6) Tor ORPort/SOCKS usage — log as anonymizer; favor logging over high-priority alert
 alert tcp any any -> any 9001 (
-    msg:"[RANSOM] Tor ORPort traffic";
+    msg:"[RANSOM] Tor ORPort destination (possible anonymizer) - low fidelity";
     classtype:anonymizer;
-    sid:2000008; rev:1;
+    metadata:service tor, severity low;
+    sid:2000008; rev:2;
 )
+
 alert tcp any any -> any 9050 (
-    msg:"[RANSOM] Tor SOCKS Traffic";
+    msg:"[RANSOM] Tor SOCKS destination (possible anonymizer) - low fidelity";
     classtype:anonymizer;
-    sid:2000009; rev:1;
+    metadata:service tor, severity low;
+    sid:2000009; rev:2;
 )
 
-# --- Suspicious SMB IPC$ activity ---
+# 7) Suspicious SMB IPC$ activity — combine with uncommon verb usage or sudden access pattern
 alert tcp any any -> any any (
-    msg:"[RANSOM] Suspicious SMB IPC$ Traffic";
+    msg:"[RANSOM] Suspicious SMB IPC$ usage (possible lateral or tool access)";
     flow:to_server,established;
-    content:"IPC$"; nocase;
+    content:"|49 50 43 24|"; depth:4;  # "IPC$" in ASCII hex; safer than text match in some cases
     classtype:trojan-activity;
-    sid:2000010; rev:1;
+    metadata:service smb, severity medium;
+    sid:2000010; rev:2;
 )
 
-# --- Ransomware Note / Decrypt instructions ---
+# 8) Ransomware note / decrypt instructions — require filename + small size or README pattern in URI/body
 alert http any any -> any any (
-    msg:"[RANSOM] Ransomware Note Download (decrypt instructions)";
-    content:"decrypt"; nocase; http_uri;
+    msg:"[RANSOM] Potential ransomware note (README_DECRYPT) served over HTTP";
+    flow:established,to_client;
+    http_uri; pcre:"/README[\-_]?DECRYPT(\.txt|\.html)?$/i";
+    dsize:<65536;  # small text file
     classtype:ransomware-activity;
-    sid:2000011; rev:2;
+    metadata:service http, severity high;
+    sid:2000011; rev:3;
 )

@@ -1,0 +1,49 @@
+{"ts_written":1765567560.8380485,"event":{"type":"process_guard","action":"started","detail":{"terminate_on_detect":false,"dry_run":true},"ts":1765567560.7711825}}
+{"ts_written":1765567560.902288,"event":{"type":"net_guard","action":"started","detail":{"autoblock":false},"ts":1765567560.8401806}}
+{"ts_written":1765818555.8713346,"event":{"type":"file","action":"modified","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-15_22_39_14.png"},"ts":1765818555.3068233}}
+{"ts_written":1765819314.0213304,"event":{"type":"process_guard","action":"started","detail":{"terminate_on_detect":false,"dry_run":true},"ts":1765819313.9557686}}
+{"ts_written":1765819314.0907433,"event":{"type":"net_guard","action":"started","detail":{"autoblock":false},"ts":1765819314.0246124}}
+{"ts_written":1765825897.9942238,"event":{"type":"file","action":"modified","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-16_00_41_36.png"},"ts":1765825897.4260347}}
+{"ts_written":1765825897.9957478,"event":{"type":"file","action":"analysis","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-16_00_41_36.png","analysis":{"suspicious":false,"reasons":["entropy=7.90"],"score":4.0}},"ts":1765825897.4308052}}
+{"ts_written":1765828192.841016,"event":{"type":"net_guard","action":"dashboard_block_failed","detail":{"ip":"1.2.3.4","error":"HTTPConnectionPool(host='127.0.0.1', port=5000): Read timed out. (read timeout=4)"},"ts":1765828192.278337}}
+{"ts_written":1765828193.453056,"event":{"type":"net_guard","action":"local_block_error","detail":{"ip":"1.2.3.4","error":"iptables v1.8.11 (nf_tables): Could not fetch rule set generation id: Permission denied (you must be root)\n"},"ts":1765828192.8875573}}
+{"ts_written":1765828198.622498,"event":{"type":"net_guard","action":"dashboard_block_failed","detail":{"ip":"1.2.3.4","error":"HTTPConnectionPool(host='127.0.0.1', port=5000): Read timed out. (read timeout=4)"},"ts":1765828198.0589046}}
+{"ts_written":1765828199.1914752,"event":{"type":"net_guard","action":"local_block_error","detail":{"ip":"1.2.3.4","error":"iptables v1.8.11 (nf_tables): Could not fetch rule set generation id: Permission denied (you must be root)\n"},"ts":1765828198.6280987}}
+{"ts_written":1765897839.531,"event":{"type":"process_guard","action":"started","detail":{"terminate_on_detect":false,"dry_run":true},"ts":1765897839.4654765}}
+{"ts_written":1765897839.5971406,"event":{"type":"net_guard","action":"started","detail":{"autoblock":false},"ts":1765897839.533215}}
+{"ts_written":1765898053.495873,"event":{"type":"file","action":"analysis","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-16_20_44_12.png","analysis":{"suspicious":false,"reasons":["entropy=7.91"],"score":4.0}},"ts":1765898052.9291012}}
+{"ts_written":1766069295.71523,"event":{"type":"process_guard","action":"suspicious_name","detail":{"pid":443601,"name":"sessionclean"},"ts":1766069295.0796363}}
+{"ts_written":1766069384.8667624,"event":{"type":"file","action":"modified","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-18_20_19_43.png"},"ts":1766069384.2714176}}
+{"ts_written":1766069385.437346,"event":{"type":"file","action":"backup","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-18_20_19_43.png","backup":"/home/deepak/Ransomware_Project_Final/honeypot_data/backup/1766069384_Screenshot_2025-12-18_20_19_43.png"},"ts":1766069384.871481}}
+{"ts_written":1766069517.8288686,"event":{"type":"net_guard","action":"dashboard_block_failed","detail":{"ip":"192.23.36.1","error":"HTTPConnectionPool(host='127.0.0.1', port=5000): Read timed out. (read timeout=4)"},"ts":1766069517.2522874}}
+{"ts_written":1766069518.5569098,"event":{"type":"net_guard","action":"local_block_error","detail":{"ip":"192.23.36.1","error":"iptables v1.8.11 (nf_tables): Could not fetch rule set generation id: Permission denied (you must be root)\n"},"ts":1766069517.9768848}}
+{"ts_written":1766069521.762089,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"192.23.36.1","result":{"status":"blocked","ip":"192.23.36.1"}},"ts":1766069521.1935663}}
+{"ts_written":1766069522.0216029,"event":{"type":"process_guard","action":"sustained_spike","detail":{"pid":253743,"name":"firefox-esr","cpu_window":[[138.1,14.011455142572625],[106.8,14.021040780478513]]},"ts":1766069520.9517515}}
+{"ts_written":1766069522.6615815,"event":{"type":"process_guard","action":"skipped_same_user","detail":{"pid":253743,"name":"firefox-esr","cmd":["/usr/lib/firefox-esr/firefox-esr"],"action":"skipped_same_user"},"ts":1766069522.0916123}}
+{"ts_written":1766069523.1772306,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"192.23.36.1","result":{"status":"blocked","ip":"192.23.36.1"}},"ts":1766069522.6033237}}
+{"ts_written":1766069526.785166,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"192.23.36.1","result":{"status":"blocked","ip":"192.23.36.1"}},"ts":1766069526.2173862}}
+{"ts_written":1766069666.0881348,"event":{"type":"file","action":"modified","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-18_20_24_24.png"},"ts":1766069665.4959016}}
+{"ts_written":1766069666.6765306,"event":{"type":"file","action":"backup","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-18_20_24_24.png","backup":"/home/deepak/Ransomware_Project_Final/honeypot_data/backup/1766069666_Screenshot_2025-12-18_20_24_24.png"},"ts":1766069666.1017287}}
+{"ts_written":1766069667.251312,"event":{"type":"file","action":"analysis","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-18_20_24_24.png","analysis":{"suspicious":false,"reasons":["entropy=7.92"],"score":4.0}},"ts":1766069666.6781807}}
+{"ts_written":1766069667.831067,"event":{"type":"file","action":"modified","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-18_20_24_24.png"},"ts":1766069667.2574363}}
+{"ts_written":1766069668.7832468,"event":{"type":"file","action":"backup","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-18_20_24_24.png","backup":"/home/deepak/Ransomware_Project_Final/honeypot_data/backup/1766069668_Screenshot_2025-12-18_20_24_24.png"},"ts":1766069668.2102528}}
+{"ts_written":1766069669.3578775,"event":{"type":"file","action":"analysis","detail":{"path":"/home/deepak/Pictures/Screenshot_2025-12-18_20_24_24.png","analysis":{"suspicious":false,"reasons":["entropy=7.92"],"score":4.0}},"ts":1766069668.787651}}
+{"ts_written":1766069896.213039,"event":{"type":"process_guard","action":"sustained_spike","detail":{"pid":253743,"name":"firefox-esr","cpu_window":[[95.0,14.310380513191854],[126.1,14.113600188537898]]},"ts":1766069895.6244555}}
+{"ts_written":1766070298.4719415,"event":{"type":"process_guard","action":"started","detail":{"terminate_on_detect":false,"dry_run":true},"ts":1766070298.390056}}
+{"ts_written":1766070298.54548,"event":{"type":"net_guard","action":"started","detail":{"autoblock":false},"ts":1766070298.4789276}}
+{"ts_written":1766075384.4304903,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"8.8.6.7","result":{"status":"blocked","ip":"8.8.6.7"}},"ts":1766075383.8642704}}
+{"ts_written":1766076839.3395383,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"1.1.1.1","result":{"status":"blocked","ip":"1.1.1.1"}},"ts":1766076838.7745538}}
+{"ts_written":1766079444.6730113,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"8.8.8.8","result":{"status":"blocked","ip":"8.8.8.8"}},"ts":1766079444.1029274}}
+{"ts_written":1766079509.2803712,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"192.168.89.132","result":{"status":"blocked","ip":"192.168.89.132"}},"ts":1766079508.7158613}}
+{"ts_written":1766080079.8640606,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"8.8.8.8","result":{"status":"blocked","ip":"8.8.8.8"}},"ts":1766080079.2958345}}
+{"ts_written":1766080198.2554958,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"8.8.8.8","result":{"status":"blocked","ip":"8.8.8.8"}},"ts":1766080197.690779}}
+{"ts_written":1767891334.567453,"event":{"type":"process_guard","action":"started","detail":{"terminate_on_detect":false,"dry_run":true},"ts":1767891334.5026147}}
+{"ts_written":1767891334.6315112,"event":{"type":"net_guard","action":"started","detail":{"autoblock":false},"ts":1767891334.5691543}}
+{"ts_written":1767894356.7693782,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"13.255.255.255","result":{"status":"blocked","ip":"13.255.255.255"}},"ts":1767894356.204945}}
+{"ts_written":1767894512.8157752,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"8.8.8.8","result":{"status":"blocked","ip":"8.8.8.8"}},"ts":1767894512.2519102}}
+{"ts_written":1767894605.441857,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"13.255.255.255","result":{"status":"blocked","ip":"13.255.255.255"}},"ts":1767894604.8784041}}
+{"ts_written":1767894773.5876222,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"15.255.255.255","result":{"status":"blocked","ip":"15.255.255.255"}},"ts":1767894773.0225039}}
+{"ts_written":1767897759.5649154,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"15.255.255.255","result":{"status":"blocked","ip":"15.255.255.255"}},"ts":1767897759.0015197}}
+{"ts_written":1767937227.8970046,"event":{"type":"process_guard","action":"started","detail":{"terminate_on_detect":false,"dry_run":true},"ts":1767937227.8309705}}
+{"ts_written":1767937227.9643443,"event":{"type":"net_guard","action":"started","detail":{"autoblock":false},"ts":1767937227.9018826}}
+{"ts_written":1767938009.5268457,"event":{"type":"net_guard","action":"dashboard_block_forwarded","detail":{"ip":"8.8.8.8","result":{"status":"blocked","ip":"8.8.8.8"}},"ts":1767938008.9531896}}

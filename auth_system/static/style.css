@@ -1,0 +1,168 @@
+/* ============================
+   GLOBAL RESET
+============================ */
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+/* ============================
+   AUTH PAGE FULLSCREEN BG
+============================ */
+.auth-body {
+  height: 100vh;
+  width: 100vw;
+  font-family: "Segoe UI", Arial, sans-serif;
+  color: #e5e7eb;
+
+  /* 🔥 CLEAR HD BACKGROUND */
+  background-image: url("/static/123.png"); /* <-- your image */
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  /* ❌ NO heavy gradient here */
+}
+
+/* ============================
+   LIGHT OVERLAY (very subtle)
+============================ */
+.auth-body::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: rgba(2, 6, 23, 0.35); /* very light dark layer */
+  z-index: 0;
+}
+
+/* ============================
+   AUTH CARD
+============================ */
+.auth-card {
+  position: relative;
+  z-index: 1;
+  transform: translateX(160px);
+
+
+  width: 100%;
+  max-width: 380px;
+  padding: 30px;
+
+  /* 🔥 Glassy look */
+  background: rgba(15, 23, 42, 0.88);
+  backdrop-filter: blur(6px);
+
+  border-radius: 14px;
+  box-shadow: 0 30px 60px rgba(0,0,0,0.75);
+}
+
+/* ============================
+   TITLES
+============================ */
+.auth-title {
+  text-align: center;
+  font-size: 24px;
+  font-weight: 600;
+  color: #38bdf8;
+  margin-bottom: 6px;
+}
+
+.auth-subtitle {
+  text-align: center;
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 20px;
+}
+
+/* ============================
+   INPUTS
+============================ */
+.auth-card input {
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 14px;
+
+  border-radius: 8px;
+  border: 1px solid #1e293b;
+  background: #020617;
+  color: #e5e7eb;
+  font-size: 14px;
+}
+
+.auth-card input::placeholder {
+  color: #64748b;
+}
+
+.auth-card input:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 1px rgba(56,189,248,0.4);
+}
+
+/* ============================
+   BUTTON
+============================ */
+.auth-card button {
+  width: 100%;
+  padding: 12px;
+
+  border: none;
+  border-radius: 8px;
+
+  background: linear-gradient(90deg, #2563eb, #38bdf8);
+  color: #fff;
+  font-weight: 600;
+  font-size: 15px;
+
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.auth-card button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 10px 25px rgba(56,189,248,0.35);
+}
+
+/* ============================
+   FLASH MESSAGES
+============================ */
+.msg {
+  background: rgba(2, 6, 23, 0.9);
+  border-left: 4px solid #38bdf8;
+  padding: 8px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  margin-bottom: 14px;
+}
+
+/* ============================
+   FOOTER LINKS
+============================ */
+.auth-footer {
+  margin-top: 14px;
+  text-align: center;
+  font-size: 13px;
+}
+
+.auth-footer a {
+  color: #38bdf8;
+  text-decoration: none;
+}
+
+.auth-footer a:hover {
+  text-decoration: underline;
+}
+
+/* ============================
+   MOBILE SUPPORT
+============================ */
+@media (max-width: 600px) {
+  .auth-card {
+    margin: 0 16px;
+  }
+}

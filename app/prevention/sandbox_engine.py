@@ -239,6 +239,16 @@ class SandboxSimulation:
 
         return res
 
+    # ------------------------------------------------------------
+    # Backwards-compatible run() alias
+    # ------------------------------------------------------------
+    def run(self, path: str) -> dict:
+        """
+        Backward-compatible method name used by older modules (e.g. FileGuard).
+        Delegates to analyze().
+        """
+        return self.analyze(path)
+
 
 # ======================================================================
 # BACKWARD COMPATIBILITY WRAPPER
@@ -255,3 +265,15 @@ class SandboxAnalyzer:
 
     def analyze(self, path: str) -> dict:
         return self.sim.analyze(path)
+
+
+# ----------------------------------------------------------------------
+# Module-level convenience function for older imports that used analyze_file()
+# ----------------------------------------------------------------------
+def analyze_file(path: str) -> dict:
+    """
+    Convenience function kept for backward compatibility.
+    Older code could import: from app.prevention.sandbox_engine import analyze_file
+    """
+    sim = SandboxSimulation()
+    return sim.analyze(path)

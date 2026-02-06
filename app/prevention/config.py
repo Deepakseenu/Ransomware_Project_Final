@@ -28,6 +28,13 @@ BASELINE_PATH = os.getenv("HP_BASELINE", str(Path(BASE_DIR) / "baseline_checksum
 CPU_SPIKE_THRESHOLD = float(os.getenv("HP_CPU_SPIKE", "80.0"))
 MEM_SPIKE_THRESHOLD = float(os.getenv("HP_MEM_SPIKE", "80.0"))
 
+# ⭐ NEW: ProcessGuard enhanced settings
+PROC_SUSTAINED_SAMPLES = int(os.getenv("HP_PROC_SUSTAINED_SAMPLES", "2"))
+PROC_COOLDOWN = int(os.getenv("HP_PROC_COOLDOWN", "30"))
+PROC_SAMPLE_INTERVAL = float(os.getenv("HP_PROC_SAMPLE_INTERVAL", "1.0"))
+PROC_TERMINATE = os.getenv("HP_PROC_TERMINATE", "false").lower() in ("true", "1", "yes")
+PROC_WHITELIST = os.getenv("HP_PROC_WHITELIST", "")
+
 # NetGuard settings
 DASHBOARD_URL = os.getenv("HP_DASHBOARD_URL", "http://127.0.0.1:5000")
 BLOCKED_FILE = os.getenv("HP_BLOCKED_FILE", str(Path(BASE_DIR) / "blocked.json"))

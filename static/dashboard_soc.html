@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>Honeypot SOC Dashboard</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <!-- Tailwind (CDN build) -->
+  <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+  <!-- Leaflet (map) + MarkerCluster -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.3/dist/leaflet.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.5.3/dist/MarkerCluster.Default.css" />
+  <script src="https://unpkg.com/leaflet@1.9.3/dist/leaflet.js"></script>
+  <script src="https://unpkg.com/leaflet.markercluster@1.5.3/dist/leaflet.markercluster.js"></script>
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    /* Blue SOC theme overrides */
+    :root{
+      --soc-blue:#0f4c81;
+      --soc-accent:#00bcd4;
+      --card-bg: #ffffff;
+      --card-bg-soft: rgba(255,255,255,0.06);
+    }
+    body{background:linear-gradient(180deg,#071a2b 0%, #0b2436 100%); color: #e6f3ff; font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;}
+    header {background: linear-gradient(90deg,var(--soc-blue),#12395a); box-shadow:0 6px 20px rgba(2,6,23,0.6);}
+    .card {background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02)); border-radius:12px; padding:16px; box-shadow: 0 6px 18px rgba(0,0,0,0.35); color: #e8f6ff;}
+    .btn-primary{background:var(--soc-accent); color:#022; padding:8px 12px; border-radius:8px; font-weight:600}
+    .tab-active{background:rgba(255,255,255,0.06); border-bottom:3px solid var(--soc-accent); color: #fff}
+    .muted{color:rgba(230,243,255,0.7)}
+    a {color: var(--soc-accent)}
+    #ipMap {border-radius:12px; overflow:hidden}
+    pre#eventLog {background:rgba(0,0,0,0.35); color:#9ef0ff; padding:12px; border-radius:8px;}
+    .label {font-size:12px;color:#9edbf0}
+    .chip {background: rgba(0,188,212,0.08); color:var(--soc-accent); padding:4px 8px; border-radius:999px; font-weight:600}
+  </style>
+</head>
+<body>
+  <div class="min-h-screen flex flex-col">
+    <header class="flex items-center justify-between px-6 py-4">
+      <div class="flex items-center space-x-4">
+        <div class="text-2xl font-bold">Honeypot SOC</div>
+        <div class="ml-2 px-3 py-1 rounded text-sm muted">Ransomware Detection & Response</div>
+      </div>
+      <div class="flex items-center space-x-3">
+        <button id="startMonitorBtn" class="btn-primary">▶ Start Monitor</button>
+        <button id="stopMonitorBtn" class="px-3 py-1 rounded bg-red-600 text-white">⏹ Stop</button>
+        <div id="monitorStatus" class="px-3 py-1 rounded bg-white/5">unknown</div>
+        <div id="wsStatus" class="px-3 py-1 rounded bg-white/5">ws: disconnected</div>
+      </div>
+    </header>
+
+    <!-- Top nav tabs -->
+    <nav class="flex gap-2 px-6 py-3 items-center overflow-auto">
+      <button class="tab-btn px-4 py-2 rounded tab-active" data-tab="overview">Overview</button>
+      <button class="tab-btn px-4 py-2 rounded" data-tab="events">Events</button>
+      <button class="tab-btn px-4 py-2 rounded" data-tab="blocked">Blocked IPs</button>
+      <button class="tab-btn px-4 py-2 rounded" data-tab="processes">Processes</button>
+      <button class="tab-btn px-4 py-2 rounded" data-tab="map">Threat Map</button>
+      <button class="tab-btn px-4 py-2 rounded" data-tab="ransom_alerts">Ransomware Alerts</button>
+      <button class="tab-btn px-4 py-2 rounded" data-tab="threat_intel">Threat Intelligence</button>
+      <div class="ml-auto text-sm muted">Theme: Blue SOC • Layout: Top nav</div>
+    </nav>
+
+    <main class="flex-1 overflow-auto p-6 space-y-6">
+      <!-- OVERVIEW -->
+      <section id="overview" class="tab-section">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="card">
+            <div class="flex items-center justify-between"><div class="text-sm label">CPU</div><div class="text-lg font-semibold" id="cpuUsage">--%</div></div>
+            <div class="h-2 bg-white/5 rounded mt-3"><div id="cpuBar" style="width:0%" class="h-2 bg-gradient-to-r from-teal-400 to-blue-400 rounded"></div></div>
+            <div class="text-sm muted mt-2">Live CPU usage (system)</div>
+          </div>
+
+          <div class="card">
+            <div class="flex items-center justify-between"><div class="text-sm label">Memory</div><div class="text-lg font-semibold" id="memUsage">--%</div></div>
+            <div class="h-2 bg-white/5 rounded mt-3"><div id="memBar" style="width:0%" class="h-2 bg-gradient-to-r from-indigo-400 to-blue-400 rounded"></div></div>
+            <div class="text-sm muted mt-2">Live memory usage</div>
+          </div>
+
+          <div class="card">
+            <div class="flex items-center justify-between"><div>
+              <div class="label">Blocked IPs</div>
+              <div class="text-2xl font-bold" id="blockedCount">--</div>
+            </div>
+            <div>
+              <div class="label">Recent Events</div>
+              <div class="text-2xl font-bold" id="eventCount">--</div>
+            </div>
+            </div>
+            <div class="mt-3 flex gap-2">
+              <input id="blockIpInput" placeholder="1.2.3.4" class="p-2 rounded bg-white/5 flex-1" />
+              <button id="blockIpBtn" class="btn-primary">Block</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mt-6">
+          <div class="card md:col-span-2">
+            <h3 class="font-semibold mb-2">Event Timeline</h3>
+            <pre id="eventLog" class="h-56 overflow-auto"></pre>
+          </div>
+          <div class="card">
+            <h3 class="font-semibold mb-2">Mod Events (last 20)</h3>
+            <canvas id="modChart" height="200"></canvas>
+          </div>
+        </div>
+      </section>
+
+      <!-- EVENTS -->
+      <section id="events" class="tab-section hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="card">
+            <h2 class="text-xl font-semibold mb-2">Live Events Feed</h2>
+            <pre id="eventsFeed" class="h-96 overflow-auto"></pre>
+          </div>
+          <div class="card">
+            <h2 class="text-xl font-semibold mb-2">Filters</h2>
+            <div class="space-y-3">
+              <label class="text-sm muted">Event Type</label>
+              <select id="filterType" class="w-full p-2 rounded bg-white/5">
+                <option value="">All</option>
+                <option value="file_guard">File</option>
+                <option value="process_guard">Process</option>
+                <option value="net_guard">Network</option>
+                <option value="ransom">Ransomware</option>
+              </select>
+              <label class="text-sm muted">Search</label>
+              <input id="filterSearch" class="w-full p-2 rounded bg-white/5" placeholder="path, ip, pid..." />
+              <button id="applyFilters" class="btn-primary w-full">Apply</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- BLOCKED -->
+      <section id="blocked" class="tab-section hidden">
+        <div class="card">
+          <h2 class="text-xl font-semibold mb-3">Blocked IPs</h2>
+          <div id="blockedList" class="space-y-2"></div>
+        </div>
+      </section>
+
+      <!-- PROCESSES -->
+      <section id="processes" class="tab-section hidden">
+        <div class="card">
+          <h2 class="text-xl font-semibold mb-3">Top Processes</h2>
+          <table class="w-full text-left">
+            <thead class="text-sm muted"><tr><th>PID</th><th>Name</th><th>CPU%</th><th>MEM%</th></tr></thead>
+            <tbody id="processTable"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- MAP -->
+      <section id="map" class="tab-section hidden">
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="card md:col-span-2">
+            <h2 class="text-xl font-semibold mb-2">Threat Map</h2>
+            <div id="ipMap" style="height:520px;"></div>
+          </div>
+
+          <div class="card">
+            <h2 class="text-xl font-semibold mb-2">Map Controls</h2>
+            <div class="space-y-3">
+              <label class="text-sm muted">Cluster radius</label>
+              <input id="clusterRadius" type="range" min="20" max="120" value="40" />
+              <label class="text-sm muted">Auto-update GeoIP</label>
+              <div><input id="autoGeo" type="checkbox" checked /> <span class="muted">Refresh markers every 30s</span></div>
+              <button id="refreshMapBtn" class="btn-primary w-full">Refresh Map</button>
+            </div>
+            <div class="mt-4 muted text-sm">GeoIP provided by ipapi.co (free, rate-limited).</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- RANSOMWARE ALERTS -->
+      <section id="ransom_alerts" class="tab-section hidden">
+        <div class="card">
+          <h2 class="text-xl font-semibold mb-2">Ransomware Alerts</h2>
+          <div id="ransomAlertsList" class="space-y-3"></div>
+        </div>
+      </section>
+
+      <!-- THREAT INTELLIGENCE -->
+      <section id="threat_intel" class="tab-section hidden">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div class="card">
+            <h2 class="text-xl font-semibold mb-2">IP Lookup & Threat Intel</h2>
+            <div class="space-y-3">
+              <input id="intelIp" placeholder="Enter IP (e.g. 1.2.3.4)" class="w-full p-2 rounded bg-white/5" />
+              <div class="flex gap-2">
+                <button id="doLookup" class="btn-primary flex-1">Lookup GeoIP</button>
+                <button id="doRDNS" class="px-3 py-2 rounded bg-indigo-600">Reverse DNS</button>
+              </div>
+              <div id="intelResult" class="mt-3 text-sm"></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <h2 class="text-xl font-semibold mb-2">Quick Threat Ops</h2>
+            <div class="space-y-3">
+              <label class="text-sm muted">Block/Unblock</label>
+              <div class="flex gap-2">
+                <input id="quickIp" class="w-full p-2 rounded bg-white/5" placeholder="IP"/>
+                <button id="quickBlock" class="btn-primary">Block</button>
+                <button id="quickUnblock" class="px-3 py-2 rounded bg-yellow-500">Unblock</button>
+              </div>
+              <label class="text-sm muted">Optional AbuseIPDB Key</label>
+              <input id="abuseKey" class="w-full p-2 rounded bg-white/5" placeholder="Paste API key to use AbuseIPDB (optional)"/>
+              <div class="text-sm muted mt-2">If you paste a key we will show AbuseIPDB score (client-side call).</div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script>
+  /* ---------------------------
+     Basic tab handling
+     --------------------------- */
+  document.querySelectorAll('.tab-btn').forEach(b=>{
+    b.addEventListener('click', ()=> {
+      document.querySelectorAll('.tab-btn').forEach(x=>x.classList.remove('tab-active'));
+      b.classList.add('tab-active');
+      const t = b.dataset.tab;
+      document.querySelectorAll('.tab-section').forEach(s=>s.classList.add('hidden'));
+      document.getElementById(t).classList.remove('hidden');
+      // if map tab opened, refresh map
+      if(t === 'map') setTimeout(()=>updateMap(), 300);
+    });
+  });
+
+  /* ---------------------------
+     WebSocket -> live events
+     --------------------------- */
+  let ws;
+  const wsStatus = document.getElementById('wsStatus');
+  const eventsFeed = document.getElementById('eventsFeed');
+  const eventLog = document.getElementById('eventLog');
+  function startWebSocket(){
+    const scheme = location.protocol === 'https:' ? 'wss' : 'ws';
+    ws = new WebSocket(`${scheme}://${location.host}/ws/events`);
+    ws.onopen = ()=> { wsStatus.textContent = 'ws: connected'; wsStatus.style.color = '#7fffd4' };
+    ws.onclose = ()=> { wsStatus.textContent = 'ws: disconnected'; wsStatus.style.color = '#ff8888'; setTimeout(startWebSocket,2000) };
+    ws.onerror = ()=> { wsStatus.textContent = 'ws: error'; wsStatus.style.color = '#ff8888'; };
+    ws.onmessage = (ev) => {
+      try {
+        const obj = JSON.parse(ev.data);
+        if(obj.type === 'new_event' && obj.data){
+          pushEventToUI(obj.data);
+        }
+      } catch(e){ console.warn('ws parse', e) }
+    }
+  }
+  startWebSocket();
+
+  // local recent events (cap)
+  const recentEvents = [];
+  function pushEventToUI(data){
+    // human-friendly string
+    const t = new Date((data.ts||Date.now())*1000);
+    const timestr = t.toLocaleString();
+    const title = (data.type || 'event') + ' / ' + (data.action || '—');
+    const detail = JSON.stringify(data.detail || {});
+    const line = `[${timestr}] ${title} ${detail}\n`;
+    eventsFeed.textContent = line + eventsFeed.textContent;
+    // small event log
+    eventLog.textContent = line + eventLog.textContent;
+    recentEvents.unshift(data);
+    if(recentEvents.length > 500) recentEvents.pop();
+    renderOverviewCards();
+    renderRansomAlerts();
+  }
+
+  // seed by polling a small set of recent events once on load
+  (async function seedEvents(){
+    try {
+      const r = await fetch('/api/events?limit=50');
+      const arr = await r.json();
+      if(Array.isArray(arr)) arr.reverse().forEach(e=> pushEventToUI(e));
+    } catch(e){ console.warn('seed events', e) }
+  })();
+
+  /* ---------------------------
+     Overview: live status
+     --------------------------- */
+  async function renderOverviewCards(){
+    try {
+      const r = await fetch('/api/live_status');
+      const j = await r.json();
+      document.getElementById('cpuUsage').textContent = (j.cpu||0).toFixed(1)+'%';
+      document.getElementById('memUsage').textContent = (j.memory||0).toFixed(1)+'%';
+      document.getElementById('blockedCount').textContent = (j.blocked_ips||0);
+      document.getElementById('eventCount').textContent = (j.recent_events||0);
+      document.getElementById('cpuBar').style.width = Math.min(100, j.cpu||0)+'%';
+      document.getElementById('memBar').style.width = Math.min(100, j.memory||0)+'%';
+    } catch(e){}
+  }
+  setInterval(renderOverviewCards, 3000);
+  renderOverviewCards();
+
+  /* ---------------------------
+     Process list
+     --------------------------- */
+  async function loadProcesses(){
+    try {
+      const r = await fetch('/api/process_list');
+      const arr = await r.json();
+      const t = document.getElementById('processTable'); t.innerHTML = '';
+      arr.forEach(p=>{
+        const tr = document.createElement('tr');
+        tr.innerHTML = `<td class="py-1">${p.pid}</td><td class="py-1">${p.name}</td><td class="py-1">${(p.cpu_percent||0).toFixed(1)}</td><td class="py-1">${(p.memory_percent||0).toFixed(1)}</td>`;
+        t.appendChild(tr);
+      })
+    } catch(e){ console.warn(e) }
+  }
+  setInterval(loadProcesses, 3000); loadProcesses();
+
+  /* ---------------------------
+     Mod Chart
+     --------------------------- */
+  const modChartCtx = document.getElementById('modChart').getContext('2d');
+  const modChart = new Chart(modChartCtx, {
+    type:'line',
+    data:{labels:[], datasets:[{label:'Events', data:[], borderColor:'#00bcd4', fill:false, tension:0.3}]},
+    options:{scales:{y:{beginAtZero:true}}, plugins:{legend:{display:false}}}
+  });
+  function updateModChart(){
+    const now = new Date().toLocaleTimeString();
+    modChart.data.labels.push(now);
+    modChart.data.datasets[0].data.push(recentEvents.length);
+    if(modChart.data.labels.length>30){ modChart.data.labels.shift(); modChart.data.datasets[0].data.shift(); }
+    modChart.update();
+  }
+  setInterval(updateModChart, 3000);
+
+  /* ---------------------------
+     Blocked IPs (real)
+     --------------------------- */
+  async function loadBlockedIPs(){
+    try {
+      const r = await fetch('/api/blocked_ips');
+      const data = await r.json();
+      // data is object mapping ip->details or array (some implementations)
+      let list = [];
+      if(Array.isArray(data)) list = data;
+      else if(typeof data === 'object') list = Object.entries(data).map(([ip,d])=>({ip, ...d}));
+      const container = document.getElementById('blockedList'); container.innerHTML = '';
+      list.forEach(x=>{
+        const el = document.createElement('div');
+        el.className = 'p-2 rounded bg-white/3 flex items-center justify-between';
+        el.innerHTML = `<div><div class="font-semibold">${x.ip}</div><div class="muted text-sm">${x.reason||''} • ${x.time||x.last_blocked||''}</div></div>
+                        <div class="flex gap-2"><button data-ip="${x.ip}" class="px-3 py-1 bg-yellow-500 rounded unblock">Unblock</button></div>`;
+        container.appendChild(el);
+      });
+      container.querySelectorAll('.unblock').forEach(b=> b.addEventListener('click', async ev=>{
+        const ip = ev.currentTarget.dataset.ip;
+        await fetch('/api/unblock_ip',{method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ip})});
+        await loadBlockedIPs();
+      }));
+      document.getElementById('blockedCount').textContent = list.length;
+    } catch(e){ console.warn(e) }
+  }
+  setInterval(loadBlockedIPs, 15000);
+  loadBlockedIPs();
+
+  /* Block/unblock quick controls */
+  document.getElementById('blockIpBtn').addEventListener('click', async ()=>{
+    const ip = document.getElementById('blockIpInput').value.trim();
+    if(!ip) return alert('Enter IP');
+    await fetch('/api/block_ip', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ip})});
+    document.getElementById('blockIpInput').value = '';
+    await loadBlockedIPs();
+  });
+
+  /* Quick actions in Threat Intel tab */
+  document.getElementById('quickBlock').addEventListener('click', async ()=>{
+    const ip = document.getElementById('quickIp').value.trim();
+    if(!ip) return alert('IP required');
+    await fetch('/api/block_ip', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ip})});
+    await loadBlockedIPs();
+  });
+  document.getElementById('quickUnblock').addEventListener('click', async ()=>{
+    const ip = document.getElementById('quickIp').value.trim();
+    if(!ip) return alert('IP required');
+    await fetch('/api/unblock_ip', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ip})});
+    await loadBlockedIPs();
+  });
+
+  /* ---------------------------
+     Ransomware Alerts tab (filter from events)
+     --------------------------- */
+  function renderRansomAlerts(){
+    const out = document.getElementById('ransomAlertsList'); out.innerHTML = '';
+    // pick recent events that look like ransomware (heuristic)
+    const hits = recentEvents.filter(ev=>{
+      const t = (ev.type||'').toLowerCase();
+      const a = (ev.action||'').toLowerCase();
+      const d = JSON.stringify(ev.detail||{}).toLowerCase();
+      return t.includes('ransom') || a.includes('ransom') || d.includes('yara') || d.includes('entropy') || d.includes('honeypot') || d.includes('decoy') || d.includes('quarantine');
+    });
+    if(hits.length === 0){
+      out.innerHTML = '<div class="muted">No recent ransomware alerts.</div>';
+      return;
+    }
+    hits.slice(0,100).forEach(ev=>{
+      const el = document.createElement('div');
+      el.className = 'p-3 rounded bg-white/3';
+      const ts = new Date((ev.ts||Date.now())*1000).toLocaleString();
+      el.innerHTML = `<div class="font-semibold">${ts} — <span class="chip">${ev.type||'event'}</span></div>
+                      <div class="muted text-sm mt-1">${ev.action || ''} • ${JSON.stringify(ev.detail||{})}</div>`;
+      out.appendChild(el);
+    });
+  }
+
+  /* ---------------------------
+     Map: Leaflet + MarkerCluster + ipapi geolocation
+     --------------------------- */
+  let map, markersLayer;
+  let autoGeo = true;
+  const geocache = {}; // ip -> {lat,lon,city,country}
+  async function initMap(){
+    // dark tiles (CartoDB Dark Matter)
+    map = L.map('ipMap', {zoomControl:true}).setView([20,0],2);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
+      attribution: '&copy; OpenStreetMap & CartoDB',
+      maxZoom: 19
+    }).addTo(map);
+
+    markersLayer = L.markerClusterGroup({spiderfyOnMaxZoom:true, chunkedLoading:true});
+    map.addLayer(markersLayer);
+    await updateMap();
+  }
+
+  async function geoipLookup(ip){
+    if(geocache[ip]) return geocache[ip];
+    try {
+      const r = await fetch(`https://ipapi.co/${ip}/json/`);
+      const j = await r.json();
+      if(j && j.latitude && j.longitude){
+        geocache[ip] = {lat: j.latitude, lon:j.longitude, city:j.city, country:j.country_name, org:j.org, asn:j.asn};
+        return geocache[ip];
+      }
+    } catch(e){ console.warn('geoip', e) }
+    return null;
+  }
+
+  async function updateMap(){
+    document.getElementById('refreshMapBtn').disabled = true;
+    try {
+      markersLayer.clearLayers();
+    } catch(e){}
+    try {
+      const r = await fetch('/api/blocked_ips');
+      const data = await r.json();
+      let list = [];
+      if(Array.isArray(data)) list = data;
+      else if(typeof data === 'object') list = Object.entries(data).map(([ip,d])=>({ip, ...d}));
+      // unique ips
+      const ips = Array.from(new Set(list.map(x=>x.ip)));
+      for(const ip of ips){
+        const g = await geoipLookup(ip);
+        if(!g) continue;
+        const marker = L.marker([g.lat, g.lon]);
+        const popup = `<div style="min-width:200px"><b>${ip}</b><br>${g.city||''}, ${g.country||''}<br><small>${g.org||g.asn||''}</small><br>
+                       <div style="margin-top:8px"><button onclick="quickActionBlock('${ip}')" class="px-2 py-1 rounded bg-yellow-500">Unblock</button> <button onclick="openIntel('${ip}')" class="px-2 py-1 rounded bg-blue-500">Intel</button></div></div>`;
+        marker.bindPopup(popup);
+        markersLayer.addLayer(marker);
+      }
+      if(ips.length>0) map.fitBounds(markersLayer.getBounds(), {maxZoom:4, padding:[50,50]});
+    } catch(e){ console.warn(e) }
+    document.getElementById('refreshMapBtn').disabled = false;
+  }
+
+  window.quickActionBlock = async function(ip){
+    if(!confirm('Unblock '+ip+'?')) return;
+    await fetch('/api/unblock_ip', {method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ip})});
+    await loadBlockedIPs();
+    await updateMap();
+  }
+
+  window.openIntel = function(ip){
+    document.querySelector('[data-tab="threat_intel"]').click?.() || null;
+    document.getElementById('intelIp').value = ip;
+    document.getElementById('doLookup').click();
+  }
+
+  document.getElementById('refreshMapBtn').addEventListener('click', updateMap);
+  document.getElementById('clusterRadius').addEventListener('input', (ev)=>{
+    const v = Number(ev.target.value);
+    if(markersLayer && markersLayer.options) markersLayer.options.maxClusterRadius = v;
+    // re-create cluster layer quickly
+  });
+
+  document.getElementById('autoGeo').addEventListener('change', (ev)=> autoGeo = ev.target.checked);
+
+  /* init map on load */
+  initMap();
+
+  // optional: auto-refresh markers
+  setInterval(()=>{ if(document.getElementById('map').classList.contains('hidden')) return; if(document.getElementById('autoGeo').checked) updateMap(); }, 30000);
+
+  /* ---------------------------
+     Threat Intel tab
+     --------------------------- */
+  document.getElementById('doLookup').addEventListener('click', async ()=>{
+    const ip = document.getElementById('intelIp').value.trim();
+    if(!ip) return alert('Enter IP');
+    const out = document.getElementById('intelResult'); out.innerHTML = 'Loading...';
+    try {
+      const r = await fetch(`https://ipapi.co/${ip}/json/`);
+      const j = await r.json();
+      out.innerHTML = `<div><b>${ip}</b> — ${j.city||''}, ${j.region||''}, ${j.country_name||''}</div>
+                       <div class="muted text-sm">ASN: ${j.asn||j.org||''} • ${j.org||''}</div>
+                       <div class="mt-2 text-sm">${JSON.stringify(j,null,2)}</div>`;
+    } catch(e){ out.innerHTML = 'Lookup failed: '+e }
+  });
+
+  document.getElementById('doRDNS').addEventListener('click', async ()=>{
+    const ip = document.getElementById('intelIp').value.trim();
+    if(!ip) return alert('Enter IP');
+    const out = document.getElementById('intelResult'); out.innerHTML = 'Reverse DNS lookup...';
+    try {
+      // Use a public RDNS service via DNS-over-HTTPS (cloudflare)
+      const res = await fetch(`https://cloudflare-dns.com/dns-query?name=${ip}.in-addr.arpa&type=PTR`, {headers:{accept:'application/dns-json'}});
+      const j = await res.json();
+      out.innerHTML = `<pre class="text-sm">${JSON.stringify(j, null, 2)}</pre>`;
+    } catch(e){ out.innerHTML = 'RDNS failed: '+e }
+  });
+
+  /* ---------------------------
+     Event filters (Events tab)
+     --------------------------- */
+  document.getElementById('applyFilters').addEventListener('click', ()=>{
+    const type = document.getElementById('filterType').value;
+    const search = document.getElementById('filterSearch').value.trim().toLowerCase();
+    const feed = document.getElementById('eventsFeed');
+    feed.textContent = '';
+    recentEvents.forEach(ev=>{
+      const t = (ev.type||'').toLowerCase();
+      const d = JSON.stringify(ev.detail||{}).toLowerCase();
+      if(type && !t.includes(type)) return;
+      if(search && !(`${t} ${d} ${ev.action||''}`).includes(search)) return;
+      const timestr = new Date((ev.ts||Date.now())*1000).toLocaleString();
+      feed.textContent += `[${timestr}] ${ev.type} ${ev.action} ${JSON.stringify(ev.detail||{})}\n`;
+    });
+  });
+
+  /* ---------------------------
+     Small helpers: seeding UI with events count
+     --------------------------- */
+  function seedOverviewFromEvents(){
+    document.getElementById('eventCount').textContent = recentEvents.length;
+    renderRansomAlerts();
+  }
+  setInterval(seedOverviewFromEvents, 2000);
+
+  /* ---------------------------
+     Helper: add seeded events from server when page loads
+     --------------------------- */
+  (async function fetchInitialBlocked(){
+    await loadBlockedIPs();
+    await updateMap();
+  })();
+
+  /* ---------------------------
+     Monitor control buttons
+     --------------------------- */
+  document.getElementById('startMonitorBtn').addEventListener('click', async ()=>{
+    try {
+      const r = await fetch('/api/monitor/start', {method:'POST'});
+      const j = await r.json();
+      document.getElementById('monitorStatus').textContent = j.started ? 'started' : JSON.stringify(j);
+    } catch(e){ document.getElementById('monitorStatus').textContent = 'error' }
+  });
+  document.getElementById('stopMonitorBtn').addEventListener('click', async ()=>{
+    try {
+      const r = await fetch('/api/monitor/stop', {method:'POST'});
+      const j = await r.json();
+      document.getElementById('monitorStatus').textContent = j.stopped ? 'stopped' : JSON.stringify(j);
+    } catch(e){ document.getElementById('monitorStatus').textContent = 'error' }
+  });
+
+  /* ---------------------------
+     Initial view set
+     --------------------------- */
+  // show Overview by default
+  document.querySelector('[data-tab="overview"]').click();
+
+  </script>
+</body>
+</html>

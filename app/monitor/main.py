@@ -9,12 +9,24 @@ import time
 import threading
 from pathlib import Path
 from typing import Dict
+import json
+
+from app.monitor.alerts import trigger_alert
 
 from .lifecycle import start, shutdown
 from .logger import logger
 from .event_emit import safe_emit
 from .utils import safe_copy
 from app.prevention.sandbox_engine import SandboxSimulation
+
+# ----------------------------------------------------
+# Load alert config safely
+# ----------------------------------------------------
+config_path = Path(__file__).resolve().parents[1] / "config" / "alert_config.json"
+try:
+    alert_config = json.load(open(config_path))
+except Exception:
+    alert_config = {}
 
 # -------------------------------
 # Prevention package imports
@@ -30,7 +42,6 @@ except Exception:
     ProcessGuard = None
     NetGuard = None
 
-
 # -------------------------------
 # Analysis directory
 # -------------------------------
@@ -41,7 +52,6 @@ HP_ANALYSIS = str(
     "honeypot_analysis"
 )
 os.makedirs(HP_ANALYSIS, exist_ok=True)
-
 
 # ----------------------------------------------------
 # Build Helper Layer
@@ -75,7 +85,6 @@ def handle_suspicious_local(path, reason, analysis):
     safe_emit("new_event", ev)
     logger.warning("Suspicious (fallback): %s", ev)
 
-
 # ----------------------------------------------------
 # Sandbox (YARA + ML)
 # ----------------------------------------------------
@@ -84,7 +93,6 @@ _SANDBOX = SandboxSimulation(
     ml_enabled=True,
     entropy_threshold=float(os.getenv("HIGH_ENTROPY_THRESHOLD", "7.5"))
 )
-
 
 def sandbox_analysis(path: str) -> dict:
     try:
@@ -101,7 +109,6 @@ def sandbox_analysis(path: str) -> dict:
     except Exception as e:
         logger.error("Sandbox analysis failed: %s", e)
         return {"suspicious": False, "reasons": ["analysis_failed"], "score": 0.0}
-
 
 # ----------------------------------------------------
 # Suspicious Handler
@@ -120,7 +127,6 @@ def handle_suspicious(path: str, reason: str, analysis=None, helpers=None):
         "analysis": analysis
     }
 
-    # Suspicious → quarantine + alert
     if analysis.get("suspicious"):
         logger.warning("Suspicious file detected → %s", path)
 
@@ -131,7 +137,6 @@ def handle_suspicious(path: str, reason: str, analysis=None, helpers=None):
         safe_emit("new_event", {"type": "suspicious", **event})
         return event
 
-    # Benign → store a safe copy
     try:
         cp = safe_copy(path, HP_ANALYSIS)
         event["copy"] = cp
@@ -141,7 +146,6 @@ def handle_suspicious(path: str, reason: str, analysis=None, helpers=None):
     safe_emit("new_event", {"type": "benign", "path": path, "analysis": analysis})
     return event
 
-
 # ----------------------------------------------------
 # Start Prevention Subsystems
 # ----------------------------------------------------
@@ -150,11 +154,14 @@ def create_monitor():
 
     fg = pg = ng = None
 
-    # FileGuard → ONLY monitor honeypot dirs
     if FileGuard:
         try:
             watch_dirs = [
                 "/var/www/html/college_clone",
+                "/home/deepak/Desktop",
+                "/home/deepak/Documents",
+                "/home/deepak/Downloads",
+                "/home/deepak/Pictures",
                 str(Path.home() / "Ransomware_Project_Final" / "honeypot_data" / "decoys")
             ]
             fg = FileGuard(watch_dirs=watch_dirs, helpers=helpers)
@@ -163,7 +170,6 @@ def create_monitor():
         except Exception as e:
             logger.error("FileGuard failed: %s", e)
 
-    # ProcessGuard
     if ProcessGuard:
         try:
             pg = ProcessGuard(helpers=helpers, terminate_on_detect=False)
@@ -172,7 +178,6 @@ def create_monitor():
         except Exception as e:
             logger.error("ProcessGuard failed: %s", e)
 
-    # NetGuard
     if NetGuard:
         try:
             ng = NetGuard(helpers=helpers)
@@ -182,7 +187,6 @@ def create_monitor():
             logger.error("NetGuard failed: %s", e)
 
     return helpers, (fg, pg, ng)
-
 
 # ----------------------------------------------------
 # Main Runner
@@ -196,17 +200,42 @@ def main():
     try:
         while True:
             time.sleep(1)
+
     except KeyboardInterrupt:
-        logger.warning("Manual shutdown requested.")
+        logger.warning("Ctrl-C / Signal 2 → Fast shutdown triggered")
+
     finally:
+        logger.info("Stopping subsystems...")
+
         shutdown()
-        for svc in subsystems:
-            if svc:
-                try:
-                    svc.stop()
-                except Exception:
-                    pass
-        logger.info("Monitor exited cleanly.")
+        fg, pg, ng = subsystems
+
+        if fg:
+            try:
+                fg.stop()
+                if fg._thread:
+                    fg._thread.join(timeout=2)
+            except Exception:
+                pass
+
+        if pg:
+            try:
+                pg.stop()
+                if hasattr(pg, "_thread"):
+                    pg._thread.join(timeout=2)
+            except Exception:
+                pass
+
+        if ng:
+            try:
+                ng.stop()
+                if hasattr(ng, "_thread"):
+                    ng._thread.join(timeout=2)
+            except Exception:
+                pass
+
+        logger.info("All subsystems shut down cleanly. Exiting.")
+        os._exit(0)
 
 
 if __name__ == "__main__":

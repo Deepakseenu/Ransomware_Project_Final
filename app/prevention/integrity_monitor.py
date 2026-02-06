@@ -8,7 +8,23 @@ High-level orchestrator for:
 - Sandbox engine
 """
 
+import hashlib
+import os
+from app.prevention.logger import logger
 from ..monitor.event_emit import safe_emit
+
+# --- ALERT CONFIG ---
+from pathlib import Path
+import json
+from app.monitor.alerts import trigger_alert
+
+_cfg_path = Path(__file__).resolve().parents[2] / "config" / "alert_config.json"
+try:
+    with open(_cfg_path, "r") as _f:
+        ALERT_CONFIG = json.load(_f)
+except Exception:
+    ALERT_CONFIG = {}
+# ------------------------------------------------
 
 
 class IntegrityMonitor:
@@ -53,6 +69,12 @@ class IntegrityMonitor:
         try:
             if self.process_guard:
                 self.process_guard.stop()
+        except:
+            pass
+
+        try:
+            if self.net_guard:
+                self.net_guard.stop()
         except:
             pass
 
