@@ -70,6 +70,10 @@ Unlike traditional signature-based antivirus solutions, this project focuses on 
 
 
 
+📂 PROJECT STRUCTURE
+
+
+
 Ransomware_Project_Final/
 
 
