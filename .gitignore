@@ -6,3 +6,5 @@ honeypot_data/
 *.db
 *.log
 .env
+*.sqlite3
+*.bak
